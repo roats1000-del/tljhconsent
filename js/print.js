@@ -1,8 +1,19 @@
 // 列印簽名版（print.html）邏輯
-// 資訊組用：一次載入全部班級；畫面可依年級／班級／選項縮小，列印時每班獨立一頁。
-// 門禁與查詢頁不同：密鑰來自網址 print.html?key=<PRINT_KEY>，伺服器端驗證（GAS 的 PRINT_KEY）。
+// 資訊組用：一次列出全部班級；可依年級／班級／選項縮小；列印時每班獨立一頁。
+// 門禁：密鑰來自網址 print.html?key=<PRINT_KEY>，伺服器端驗證（GAS 的 PRINT_KEY）。
+//
+// 效能策略（500 人整校列印不會卡死）：
+//   ① 先送「meta」→ 只回表單資料（班級/座號/學號/選項＋簽名網址），不碰任何圖，立刻把整張表畫出來。
+//   ② 再依「班級」分批撈圖（每次 2 個請求並行，一班約 30 張圖、幾百 KB），逐班填充＋進度顯示。
+//      GAS 不會一口氣做 500 次 Drive 讀取而逼近 6 分鐘執行上限；回應也小於 1MB／批。
+//   ③ 同一張圖 GAS 端有 CacheService 快取，重複列印幾乎秒開。
+
 var KEY = (new URLSearchParams(location.search)).get('key') || '';
-var LAST = [];                 // 後端回傳的全部列（本地再做年級/班級/選項篩選）
+
+var LAST = [];            // 後端回傳的表單資料（預留 sign 網址，圖片另外分批撈）
+var IMG = {};             // 學號 → 簽名圖 signB64（批次載入後填充）
+var imgPending = false;   // 是否仍在撈圖
+var imgTotal = 0, imgDone = 0;
 
 function load(){
   apiCall('printData', { key: KEY.trim(), f: {} }).then(function(d){
@@ -12,7 +23,7 @@ function load(){
     LAST = d.rows || [];
     fillSelectors(d);
     render();
-    hintBadSig();
+    loadClassImages();
   }).catch(function(e){
     document.getElementById('summary').textContent = '讀取失敗：' + String((e && e.message) || e);
   });
@@ -37,23 +48,71 @@ function gradeChange(){
     return '<option' + (c === keep ? ' selected' : '') + '>' + esc(c) + '</option>';
   }).join('');
   render();
+  loadClassImages();
 }
+function clsChange(){ render(); loadClassImages(); }
 function decChange(){ render(); }
-function render(){
+
+// 目前篩選下的列（年級＋班級＋選項全部就地篩，像舊版一樣）
+function currentRows(){
   var g = document.getElementById('grade').value;
   var c = document.getElementById('cls').value;
   var dec = document.getElementById('dec').value;
-  var rows = LAST.filter(function(r){
+  return LAST.filter(function(r){
     if (g && r.cls.split('年')[0] !== g) return false;
     if (c && r.cls !== c) return false;
     if (dec && (r.decision || '未填寫') !== dec) return false;
     return true;
   });
-  var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
-  document.getElementById('summary').textContent =
-    '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印';
+}
 
-  // 依班級分組（保持後端已排好的班級／座號順序）
+// 逐班撈簽名圖：只撈「有簽名但圖還沒到手」的班級，最多 2 個請求並行
+function loadClassImages(){
+  if (imgPending) return;                 // 已有批次在跑，避免重疊
+  var g = document.getElementById('grade').value;
+  var c = document.getElementById('cls').value;
+  var order = [], seen = {};
+  LAST.forEach(function(r){
+    if (g && r.cls.split('年')[0] !== g) return;
+    if (c && r.cls !== c) return;
+    if (!r.sign || IMG[r.id]) return;     // 沒簽名或已有圖的不用撈
+    if (!seen[r.cls]){ seen[r.cls] = 1; order.push(r.cls); }
+  });
+  if (!order.length) return;
+  imgTotal = order.length; imgDone = 0; imgPending = true;
+  render();
+  var idx = 0;
+  function next(){
+    if (idx >= order.length){
+      imgPending = false;
+      render();
+      return;
+    }
+    var cls = order[idx++];
+    apiCall('printData', { key: KEY.trim(), f: { img: true, grade: g, cls: cls } }).then(function(d){
+      if (d && !d.error && d.rows){
+        d.rows.forEach(function(r){
+          if (r.signB64) IMG[r.id] = r.signB64;
+          else if (r.sign) delete IMG[r.id];   // 這列讀圖失敗 → 放手讓 ✕ 連結出現
+        });
+      }
+      imgDone++;
+      render();
+      next();
+    });
+  }
+  next();
+  next();
+}
+
+function render(){
+  var rows = currentRows();
+  var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
+  var prog = imgPending ? '｜簽名圖載入中…（' + imgDone + '/' + imgTotal + ' 班）' :
+             (imgTotal ? '｜簽名圖已全部載入' : '');
+  document.getElementById('summary').textContent =
+    '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
+
   var byCls = {}, order = [];
   rows.forEach(function(r){
     if (!byCls[r.cls]){ byCls[r.cls] = []; order.push(r.cls); }
@@ -77,41 +136,43 @@ function rowHtml(r){
     '<td class="' + c + '">' + esc(dec) + '</td>' +
     '<td class="center">' + sigCell(r) + '</td></tr>';
 }
-// 簽名圖片：資料封包已把簽名圖以 Base64 一起帶回（signB64），直接內嵌 data: URI，
-// 不再發第二次 GET 請求 → 不受 Worker GET／doGet 斷線影響，一定能顯示、一定能印。
-// 萬一哪一列沒帶到（讀圖失敗），放一個「✕」可點開原始 Drive 網址。
+// 簽名圖片：用分批撈回的 IMG 填充（data: URI 內嵌，能看到就一定能印）。
+// 尚未撈到 → 輕量空白佔位（維持版型）；撈失敗 → ✕（點開原始 Drive 網址）。
 function sigCell(r){
-  if (r.signB64){
-    return '<span class="sigl"><img src="data:image/png;base64,' + r.signB64 + '" alt="家長簽名"></span>';
+  if (IMG[r.id]){
+    return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>';
   }
+  if (r.sign && imgPending) return '<span class="sigl pending"></span>';
   if (r.sign){
     return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>';
   }
   return '';
 }
-// 載入後幾秒檢查一次：有簽名圖讀不到就在最上方補一行除錯提示（重試跑完再判斷）
-function hintBadSig(){
-  setTimeout(function(){
-    var bad = document.getElementById('print-root').querySelectorAll('.sigl.bad').length;
-    if (!bad) return;
-    var s = document.getElementById('summary');
-    s.textContent = s.textContent.replace(/(。)?$/, '；') +
-      bad + ' 張簽名圖讀不到：請確認 Cloudflare Worker 已貼上新版並按 Deploy（圖片要過 GET）、GAS 已重新部署、config.js 的 API_URL 正確。';
-  }, 4000);
-}
 function doPrint(){
   var root = document.getElementById('print-root');
-  if (!root.innerHTML){
-    alert('尚無資料可列印。'); return;
-  }
-  waitImages(root).then(function(){
-    var failed = Array.prototype.filter.call(root.querySelectorAll('.sigl img'),
-      function(i){ return !i.naturalWidth; }).length;
-    if (failed && !confirm(failed + ' 張簽名圖未載入（會印成空白）。確定仍要列印嗎？')) return;
-    window.print();
+  if (!root.innerHTML){ alert('尚無資料可列印。'); return; }
+  whenImagesDone().then(function(){
+    // 撈圖結束後再統計「有簽名卻沒有圖」的列（印出來會是空白）
+    var failed = LAST.filter(function(r){ return r.sign && !IMG[r.id]; }).length;
+    if (failed && !confirm(failed + ' 位家長簽名圖未載入（會印成空白）。確定仍要列印嗎？')) return;
+    waitImages(root).then(function(){
+      var broken = Array.prototype.filter.call(root.querySelectorAll('.sigl img'),
+        function(i){ return !i.naturalWidth; }).length;
+      if (broken && !confirm(broken + ' 張簽名圖未載入（會印成空白）。確定仍要列印嗎？')) return;
+      window.print();
+    });
   });
 }
-// 等頁面上所有簽名圖都載入（或載失敗）；再多留一點時間讓「自動重試」跑完，再統計失敗張數
+// 等所有班級的簽名批次都跑完
+function whenImagesDone(){
+  return new Promise(function(res){
+    if (!imgPending) return res();
+    var iv = setInterval(function(){
+      if (!imgPending){ clearInterval(iv); res(); }
+    }, 250);
+  });
+}
+// 等頁面上所有簽名圖都載入（data URI 幾乎立即完成，這裡是保險）
 function waitImages(root){
   var imgs = Array.prototype.slice.call(root.querySelectorAll('.sigl img'));
   if (!imgs.length) return Promise.resolve();
@@ -121,9 +182,7 @@ function waitImages(root){
       img.addEventListener('load', res);
       img.addEventListener('error', res);
     });
-  })).then(function(){
-    return new Promise(function(res){ setTimeout(res, 1400); });
-  });
+  }));
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
