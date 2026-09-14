@@ -1,6 +1,6 @@
 // 列印簽名版（print.html）邏輯
 // 資訊組用：一次載入全部班級；畫面可依年級／班級／選項縮小，列印時每班獨立一頁。
-// 密鑰來自網址：print.html?key=<QUERY_KEY>，伺服器端驗證。
+// 門禁與查詢頁不同：密鑰來自網址 print.html?key=<PRINT_KEY>，伺服器端驗證（GAS 的 PRINT_KEY）。
 var KEY = (new URLSearchParams(location.search)).get('key') || '';
 var LAST = [];                 // 後端回傳的全部列（本地再做年級/班級/選項篩選）
 
@@ -88,7 +88,7 @@ function sigCell(r){
 // Drive 網址 → 自己代理的出圖網址（ff.id 或 /file/d/ID 兩種常見格式都吃）
 function proxyImg(url){
   var m = String(url).match(/[?&]id=([A-Za-z0-9_-]+)/) || String(url).match(/\/d\/([A-Za-z0-9_-]+)/);
-  var fb = String(API_URL || '').replace(/\/+$/, '');
+  var fb = String(APP.API_URL || '').replace(/\/+$/, '');
   if (m && fb) return fb + '?file=' + encodeURIComponent(m[1]) + '&key=' + encodeURIComponent(KEY.trim());
   return url;
 }
