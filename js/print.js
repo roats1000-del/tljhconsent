@@ -67,6 +67,7 @@ function render(){
       '<table><thead><tr><th>學號</th><th>座號</th><th>選項</th><th>簽名圖片</th></tr></thead>' +
       '<tbody>' + list.map(rowHtml).join('') + '</tbody></table></section>';
   }).join('');
+  readySig(document.getElementById('print-root'));
 }
 function rowHtml(r){
   var dec = r.decision || '未填寫';
@@ -75,19 +76,33 @@ function rowHtml(r){
     '<td class="' + c + '">' + esc(dec) + '</td>' +
     '<td class="center">' + sigCell(r) + '</td></tr>';
 }
-// 簽名圖片：主要走自有代理出圖（不登入 Drive 也看得到、印得出來）；
-// 代理載不出來就改試 Google Drive 直連圖，還不行才留空（列印前會檢查有多少張沒載到並警告）
+// 簽名圖片：只走自有代理出圖（GET ?file=<id>&key=<密鑰> → GAS 出圖，不登入 Drive 也看得到）。
+// 失敗時由 readySig 自動重試一次；仍失敗就在格子裡顯示「✕」（不會自己消失）。
 function sigCell(r){
   if (!r.sign) return '';
-  var m = String(r.sign).match(/[?&]id=([A-Za-z0-9_-]+)/) || String(r.sign).match(/\/d\/([A-Za-z0-9_-]+)/);
-  var id = m ? encodeURIComponent(m[1]) : '';
+  var id = fileId(r.sign);
+  if (!id) return '';
   var fb = String(APP.API_URL || '').replace(/\/+$/, '');
-  var src = (fb && id) ? fb + '?file=' + id + '&key=' + encodeURIComponent(KEY.trim()) : r.sign;
-  var fallback = id ? 'https://drive.google.com/uc?export=view&id=' + id : '';
+  if (!fb) return '';
+  var src = fb + '?file=' + id + '&key=' + encodeURIComponent(KEY.trim());
   return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">' +
-    '<img src="' + esc(src) + '" alt="簽名" ' +
-    'onerror="if(this.dataset.fb!==\'1\'){this.dataset.fb=\'1\';this.src=\'' + esc(fallback) + '\'}else{this.remove()}">' +
-    '</a>';
+    '<img data-src="' + esc(src) + '" src="' + esc(src) + '" alt="簽名">' +
+    '<span class="sig-err">✕ 圖讀不到</span></a>';
+}
+// Drive 網址 → 檔案 ID（ff.id 或 /file/d/ID 兩種常見格式都吃）
+function fileId(url){
+  var m = String(url).match(/[?&]id=([A-Za-z0-9_-]+)/) || String(url).match(/\/d\/([A-Za-z0-9_-]+)/);
+  return m ? encodeURIComponent(m[1]) : '';
+}
+// 圖載失敗 → 1.2 秒後用原網址重試一次（GAS 冷啟動常這樣）；還失敗標記「✕」
+function readySig(root){
+  Array.prototype.forEach.call(root.querySelectorAll('.sigl img'), function(img){
+    var retried = false;
+    img.addEventListener('error', function(){
+      if (!retried){ retried = true; setTimeout(function(){ img.src = img.dataset.src || img.src; }, 1200); }
+      else { img.closest('.sigl').classList.add('bad'); }
+    });
+  });
 }
 function doPrint(){
   var root = document.getElementById('print-root');
@@ -95,15 +110,15 @@ function doPrint(){
     alert('尚無資料可列印。'); return;
   }
   waitImages(root).then(function(){
-    var failed = Array.prototype.filter.call(root.querySelectorAll('img'),
+    var failed = Array.prototype.filter.call(root.querySelectorAll('.sigl img'),
       function(i){ return !i.naturalWidth; }).length;
     if (failed && !confirm(failed + ' 張簽名圖未載入（會印成空白）。確定仍要列印嗎？')) return;
     window.print();
   });
 }
-// 等頁面上所有簽名圖都載入（或載失敗）再列印，避免按太快印出空圖
+// 等頁面上所有簽名圖都載入（或載失敗）；再多留一點時間讓「自動重試」跑完，再統計失敗張數
 function waitImages(root){
-  var imgs = Array.prototype.slice.call(root.querySelectorAll('img'));
+  var imgs = Array.prototype.slice.call(root.querySelectorAll('.sigl img'));
   if (!imgs.length) return Promise.resolve();
   return Promise.all(imgs.map(function(img){
     if (img.complete) return Promise.resolve();
@@ -111,7 +126,9 @@ function waitImages(root){
       img.addEventListener('load', res);
       img.addEventListener('error', res);
     });
-  }));
+  })).then(function(){
+    return new Promise(function(res){ setTimeout(res, 1400); });
+  });
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
