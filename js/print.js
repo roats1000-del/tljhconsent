@@ -65,8 +65,9 @@ function render(){
     return '<section class="class-block"><h2>' + esc(cls) + '</h2>' +
       '<p class="cls-summary">共 ' + list.length + ' 人｜線上已簽 ' + d +
       ' 人｜待補簽 ' + (list.length - d) + ' 人</p>' +
-      '<table><thead><tr><th>學號</th><th>座號</th><th>選項</th><th>簽名圖片</th></tr></thead>' +
-      '<tbody>' + list.map(rowHtml).join('') + '</tbody></table></section>';
+      '<table><thead><tr><th>學號</th><th>座號</th><th>選項</th><th>家長簽名</th></tr></thead>' +
+      '<tbody>' + list.map(rowHtml).join('') + '</tbody></table>' +
+      '<p class="teacher-sign">導師簽名：<span class="sign-line"></span></p></section>';
   }).join('');
 }
 function rowHtml(r){
@@ -81,7 +82,7 @@ function rowHtml(r){
 // 萬一哪一列沒帶到（讀圖失敗），放一個「✕」可點開原始 Drive 網址。
 function sigCell(r){
   if (r.signB64){
-    return '<span class="sigl"><img src="data:image/png;base64,' + r.signB64 + '" alt="簽名"></span>';
+    return '<span class="sigl"><img src="data:image/png;base64,' + r.signB64 + '" alt="家長簽名"></span>';
   }
   if (r.sign){
     return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>';
