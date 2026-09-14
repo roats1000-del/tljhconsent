@@ -111,7 +111,7 @@ function startBatch(){
         });
         allGood = missing === 0;           // 有簽名卻沒圖 → 記為失敗，下一輪再試
       }
-      tried[cls] = (tried[cls] || 0) + (allGood ? 0 : 1);
+      tried[cls] = allGood ? 0 : ((tried[cls] || 0) + 1);   // 成功就重置，辛苦失敗再+1
       imgDone++;
       render();
       step();
@@ -120,6 +120,11 @@ function startBatch(){
   step(); step();                           // 同時啟動 2 個請求並行
 }
 function resume(){ startBatch(); }
+// 全滅之後的手動補救：清空失敗計數重新抓（全班級）＋清掉尚未填好的殘留
+function retryImages(){
+  tried = {};
+  startBatch();
+}
 
 function render(){
   var rows = currentRows();
@@ -127,8 +132,13 @@ function render(){
   var missing = rows.filter(function(r){ return r.sign && !IMG[r.id]; }).length;
   var prog = imgPending ? '｜簽名圖載入中…（' + imgDone + '/' + imgTotal + ' 班）' :
              (missing ? '｜簽名圖載入失敗 ' + missing + ' 張' : (imgTotal ? '｜簽名圖已全部載入' : ''));
-  document.getElementById('summary').textContent =
-    '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
+  var msg = '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
+  var el = document.getElementById('summary');
+  if (missing && !imgPending){
+    el.innerHTML = msg + ' <button onclick="retryImages()">重試載入圖片</button>';
+  } else {
+    el.textContent = msg;
+  }
 
   var byCls = {}, order = [];
   rows.forEach(function(r){
