@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>簽名核對列印（給各班導師）</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 <style>
 /* ---- 列印版專用樣式（螢幕外觀） ---- */
 #print-root .class-block{border:1px solid #e2e8f0;border-radius:8px;margin:14px 0;padding:10px 14px}
@@ -13,21 +13,22 @@
 .sigl img{height:40px;max-width:170px;border:1px solid #e2e8f0;border-radius:4px;object-fit:contain;vertical-align:middle}
 @media print{
   .print-tools{display:none}
+  h1,.sub,#summary{display:none}
   body{padding:0}
   .credit{display:none}
   #print-root .class-block{break-before:page;border:0;padding:0;margin:0}
   #print-root .class-block:first-of-type{break-before:auto}
   .cls-summary{page-break-after:avoid}
-  table{font-size:12px}
-  table{page-break-inside:auto}
+  table{font-size:12px;page-break-inside:auto}
   tr{page-break-inside:avoid}
+  .sigl img{print-color-adjust:exact;-webkit-print-color-adjust:exact;break-inside:avoid}
 }
 </style>
 </head>
 <body class="teacher">
 
 <h1>肖像權同意書簽名核對（列印版）</h1>
-<p style="font-size:13px;color:#64748b">每班獨立一頁；印出後交給各班導師補簽於空白處</p>
+<p class="sub">每班獨立一頁；印出後交給各班導師補簽於空白處</p>
 
 <div class="filters print-tools">
   <select id="grade" onchange="gradeChange()"><option value="">全部年級</option></select>
@@ -40,9 +41,9 @@
 
 <p class="credit"><a href="https://sites.google.com/view/roats1000" target="_blank" rel="noopener">開發者：資訊組張佑正</a></p>
 
-<script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/print.js"></script>
+<script src="js/config.js?v=2"></script>
+<script src="js/api.js?v=2"></script>
+<script src="js/print.js?v=2"></script>
 
 </body>
 </html>
