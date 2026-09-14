@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>學生肖像權使用同意書</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="parent">
+
+<h1><span id="schoolName"></span> 學生肖像權使用同意書</h1>
+
+<div id="formWrap">
+<form onsubmit="return beforeSubmit(event)">
+  <!-- 資安防護：Honeypot（人類看不到、bot 會誤填；後端檢測即整筆丟棄） -->
+  <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+    <label>請不要填寫此欄：<input type="text" name="hp" id="hp" tabindex="-1" autocomplete="off"></label>
+  </div>
+
+  <div class="box">
+    <h2>一、驗證與身分</h2>
+    <label>學生學號</label>
+    <input type="text" id="sid" required>
+    <label>學生姓名</label>
+    <input type="text" id="name" required>
+    <label>與學生關係</label>
+    <select id="rel" required>
+      <option value="">請選擇</option>
+      <option value="父親">父親</option>
+      <option value="母親">母親</option>
+      <option value="祖父、祖母">祖父、祖母</option>
+      <option value="其它/監護人">其它/監護人</option>
+    </select>
+  </div>
+
+  <div class="box">
+    <h2>二、同意書內容</h2>
+    <div class="consent">本校學生肖像權使用同意書
+
+一、同意範圍
+本人同意學校於下列項目，為教育活動目的拍攝、留存並使用學生（下稱本人子女）之影像：
+1. 日常課程紀錄：教學、觀課、線上課程等過程之靜態照片與動態影音。
+2. 活動與競賽：校內外活動、競賽、成果發表等之拍攝、轉播與紀錄。
+3. 運用方式：學校官方網站、社群頁面、班級平台、教學檔案，及受邀媒體之正常報導。
+
+二、使用期間
+自送出本表單起，至本人子女畢業／離校，或本人撤回授權時為止。
+
+三、學生與家長的權利
+1. 不同意者不受任何影響，不需說明理由，學校將安排其不入鏡。
+2. 即使已同意，學生於當下仍可表示本次不入鏡，學校不會強迫。
+3. 本人可隨時向導師或學校行政人員提出撤回；自撤回生效後，學校將不再發布新的內容。
+4. 本人子女年滿 18 歲後，應由本人子女另行同意。
+
+四、個人資料保護告知
+本表單所蒐集之個人資料，僅用於肖像使用管理與聯絡，並依個人資料保護法相關規定保管。
+
+五、其他
+本同意書以表單留存紀錄，作為學校使用之授權依據。</div>
+
+    <label>本人已詳閱並了解上述同意書內容</label>
+    <label><input type="checkbox" id="read" value="我已閱讀"> 我已閱讀</label>
+
+    <label>本人與學生選擇</label>
+    <label><input type="radio" name="choice" value="同意"> 同意</label>
+    <label><input type="radio" name="choice" value="不同意"> 不同意</label>
+  </div>
+
+  <div class="box">
+    <h2>三、簽名區</h2>
+    <label>簽署人姓名</label>
+    <input type="text" id="signer" required>
+    <label>親筆簽名（手指或滑鼠於框內簽名）</label>
+    <canvas id="sig"></canvas>
+    <button type="button" class="btn light" onclick="clearSig()">清除重簽</button>
+    <div class="hint">您於此框手寫簽名，即視同您本人之電子簽署。</div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <button type="submit" class="btn">送出</button>
+</form>
+</div>
+
+<div id="result" style="display:none"></div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
