@@ -35,6 +35,7 @@ body.teacher .filters .btn{margin-top:0}
 #summary{font-size:14px;color:#64748b;margin:6px 0}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
+body.teacher table th,body.teacher table td{text-align:center}
 th{background:#f1f5f9}
 td.ok{background:#dcfce7;color:#166534;text-align:center}
 td.no{background:#fee2e2;color:#991b1b;text-align:center}
