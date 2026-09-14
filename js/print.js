@@ -16,6 +16,7 @@ var imgPending = false;   // 是否仍有批次在撈圖
 var imgTotal = 0, imgDone = 0;
 var batch = 0;            // 批次代號：換篩選會開新批，舊批的 fetch 回傳一律作廢
 var tried = {};           // 班級 → 連續撈不到圖的次數（最多重試到 2 次就放手顯示 ✕）
+var lastImgErr = '';      // 最近一次撈圖失敗的實際原因（顯示在 summary，方便除錯）
 
 function load(){
   apiCall('printData', { key: KEY.trim(), f: {} }).then(function(d){
@@ -111,13 +112,19 @@ function startBatch(){
         });
         allGood = missing === 0;           // 有簽名卻沒圖 → 記為失敗，下一輪再試
       }
-      tried[cls] = allGood ? 0 : ((tried[cls] || 0) + 1);   // 成功就重置，辛苦失敗再+1
+      // 記住失敗原因：cors/連線錯誤(d.body)或線端錯誤(d.error)
+      if (!allGood){
+        lastImgErr = (d && (d.error || d.title)) ? String(d.error || d.body) : '無回應';
+        tried[cls] = (tried[cls] || 0) + 1;
+      } else {
+        tried[cls] = 0;
+      }
       imgDone++;
       render();
       step();
     });
   }
-  step(); step();                           // 同時啟動 2 個請求並行
+  step();                                   // 逐班順序（一次一班，避免並行拖垮冷啟動／觸發 CF 防護）
 }
 function resume(){ startBatch(); }
 // 全滅之後的手動補救：清空失敗計數重新抓（全班級）＋清掉尚未填好的殘留
@@ -135,7 +142,8 @@ function render(){
   var msg = '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
   var el = document.getElementById('summary');
   if (missing && !imgPending){
-    el.innerHTML = msg + ' <button onclick="retryImages()">重試載入圖片</button>';
+    el.innerHTML = msg + ' <button onclick="retryImages()">重試載入圖片</button>' +
+      (lastImgErr ? ' <span class="err">（失敗原因：' + esc(lastImgErr) + '）</span>' : '');
   } else {
     el.textContent = msg;
   }
