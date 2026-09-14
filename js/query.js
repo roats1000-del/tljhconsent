@@ -53,8 +53,7 @@ function render(rows){
     var dec = r.decision || '未填寫';
     var c = r.decision === '同意' ? 'ok' : (r.decision === '不同意' ? 'no' : 'na');
     return '<tr><td>' + esc(r.cls) + '</td><td class="center">' + esc(r.seat) +
-      '</td><td>' + esc(r.id) + '</td><td class="' + c + '">' + esc(dec) +
-      '</td><td>' + esc(r.verify || '—') + '</td><td>' + esc(r.note || '') + '</td></tr>';
+      '</td><td>' + esc(r.id) + '</td><td class="' + c + '">' + esc(dec) + '</td></tr>';
   }).join('');
 }
 
