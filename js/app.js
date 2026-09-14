@@ -80,6 +80,8 @@ function beforeSubmit(ev){
 
 function showResult(r){
   r = r || {};
+  // 若後端/代理只回了 {error}（沒有 title），一律視為系統錯誤，避免誤顯示「送出成功」
+  if (r.error && !r.title) { r.title = '系統錯誤'; r.body = r.body || r.error; }
   document.getElementById('formWrap').style.display = 'none';
   var box = document.getElementById('result');
   box.style.display = 'block';
