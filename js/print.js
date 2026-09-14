@@ -12,8 +12,10 @@ var KEY = (new URLSearchParams(location.search)).get('key') || '';
 
 var LAST = [];            // 後端回傳的表單資料（預留 sign 網址，圖片另外分批撈）
 var IMG = {};             // 學號 → 簽名圖 signB64（批次載入後填充）
-var imgPending = false;   // 是否仍在撈圖
+var imgPending = false;   // 是否仍有批次在撈圖
 var imgTotal = 0, imgDone = 0;
+var batch = 0;            // 批次代號：換篩選會開新批，舊批的 fetch 回傳一律作廢
+var tried = {};           // 班級 → 連續撈不到圖的次數（最多重試到 2 次就放手顯示 ✕）
 
 function load(){
   apiCall('printData', { key: KEY.trim(), f: {} }).then(function(d){
@@ -22,8 +24,7 @@ function load(){
     if (d.title){ document.getElementById('summary').textContent = d.title + (d.body ? '：' + d.body : ''); return; }
     LAST = d.rows || [];
     fillSelectors(d);
-    render();
-    loadClassImages();
+    startBatch();         // 先啟動撈圖（內部 set imgPending 並 render），首次就不會先閃 ✕
   }).catch(function(e){
     document.getElementById('summary').textContent = '讀取失敗：' + String((e && e.message) || e);
   });
@@ -47,10 +48,9 @@ function gradeChange(){
   }).map(function(c){
     return '<option' + (c === keep ? ' selected' : '') + '>' + esc(c) + '</option>';
   }).join('');
-  render();
-  loadClassImages();
+  startBatch();
 }
-function clsChange(){ render(); loadClassImages(); }
+function clsChange(){ startBatch(); }
 function decChange(){ render(); }
 
 // 目前篩選下的列（年級＋班級＋選項全部就地篩，像舊版一樣）
@@ -66,50 +66,67 @@ function currentRows(){
   });
 }
 
-// 逐班撈簽名圖：只撈「有簽名但圖還沒到手」的班級，最多 2 個請求並行
-function loadClassImages(){
-  if (imgPending) return;                 // 已有批次在跑，避免重疊
+// 這張表目前「有簽名網址但 IMG 還沒到手」的班級清單（最多重試到 2 次就放手）
+function needsImages(){
   var g = document.getElementById('grade').value;
   var c = document.getElementById('cls').value;
   var order = [], seen = {};
   LAST.forEach(function(r){
     if (g && r.cls.split('年')[0] !== g) return;
     if (c && r.cls !== c) return;
-    if (!r.sign || IMG[r.id]) return;     // 沒簽名或已有圖的不用撈
+    if (!r.sign || IMG[r.id]) return;      // 沒簽名或已有圖的不用撈
     if (!seen[r.cls]){ seen[r.cls] = 1; order.push(r.cls); }
   });
-  if (!order.length) return;
+  return order;
+}
+
+// 啟動一批批次（不重疊：有新批次進來 → 舊批次代號作廢，fetch 回來直接略過）
+// 結束後自動「接手」：使用者中途換年級/班級、或某班失敗要重試，都會再啟一輪
+function startBatch(){
+  if (imgPending) return;                 // 已有批次在跑（結束後會呼叫 resume() 重進）
+  var g = document.getElementById('grade').value;
+  var order = needsImages().filter(function(c){ return (tried[c] || 0) < 2; });
+  if (!order.length){ imgPending = false; render(); return; }
+  var my = ++batch;
   imgTotal = order.length; imgDone = 0; imgPending = true;
   render();
   var idx = 0;
-  function next(){
+  function step(){
+    if (my !== batch) return;               // 被新一批取代 → 退休
     if (idx >= order.length){
       imgPending = false;
       render();
+      resume();                             // 接手「中途換篩選」或「撈失敗要重試」的殘班
       return;
     }
     var cls = order[idx++];
-    apiCall('printData', { key: KEY.trim(), f: { img: true, grade: g, cls: cls } }).then(function(d){
+    apiCall('printData', { key: KEY.trim(), f: { img:true, grade: g, cls: cls } }).then(function(d){
+      if (my !== batch) return;             // 退休了，不碰 IMG
+      var allGood = false;
       if (d && !d.error && d.rows){
+        var missing = 0;
         d.rows.forEach(function(r){
-          if (r.signB64) IMG[r.id] = r.signB64;
-          else if (r.sign) delete IMG[r.id];   // 這列讀圖失敗 → 放手讓 ✕ 連結出現
+          if (r.signB64){ IMG[r.id] = r.signB64; }
+          else if (r.sign){ delete IMG[r.id]; missing++; }
         });
+        allGood = missing === 0;           // 有簽名卻沒圖 → 記為失敗，下一輪再試
       }
+      tried[cls] = (tried[cls] || 0) + (allGood ? 0 : 1);
       imgDone++;
       render();
-      next();
+      step();
     });
   }
-  next();
-  next();
+  step(); step();                           // 同時啟動 2 個請求並行
 }
+function resume(){ startBatch(); }
 
 function render(){
   var rows = currentRows();
   var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
+  var missing = rows.filter(function(r){ return r.sign && !IMG[r.id]; }).length;
   var prog = imgPending ? '｜簽名圖載入中…（' + imgDone + '/' + imgTotal + ' 班）' :
-             (imgTotal ? '｜簽名圖已全部載入' : '');
+             (missing ? '｜簽名圖載入失敗 ' + missing + ' 張' : (imgTotal ? '｜簽名圖已全部載入' : ''));
   document.getElementById('summary').textContent =
     '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
 
