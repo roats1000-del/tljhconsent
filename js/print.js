@@ -12,6 +12,7 @@ function load(){
     LAST = d.rows || [];
     fillSelectors(d);
     render();
+    hintBadSig();
   }).catch(function(e){
     document.getElementById('summary').textContent = '讀取失敗：' + String((e && e.message) || e);
   });
@@ -103,6 +104,16 @@ function readySig(root){
       else { img.closest('.sigl').classList.add('bad'); }
     });
   });
+}
+// 載入後幾秒檢查一次：有簽名圖讀不到就在最上方補一行除錯提示（重試跑完再判斷）
+function hintBadSig(){
+  setTimeout(function(){
+    var bad = document.getElementById('print-root').querySelectorAll('.sigl.bad').length;
+    if (!bad) return;
+    var s = document.getElementById('summary');
+    s.textContent = s.textContent.replace(/(。)?$/, '；') +
+      bad + ' 張簽名圖讀不到：請確認 Cloudflare Worker 已貼上新版並按 Deploy（圖片要過 GET）、GAS 已重新部署、config.js 的 API_URL 正確。';
+  }, 4000);
 }
 function doPrint(){
   var root = document.getElementById('print-root');
