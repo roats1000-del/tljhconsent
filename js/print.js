@@ -68,7 +68,6 @@ function render(){
       '<table><thead><tr><th>學號</th><th>座號</th><th>選項</th><th>簽名圖片</th></tr></thead>' +
       '<tbody>' + list.map(rowHtml).join('') + '</tbody></table></section>';
   }).join('');
-  readySig(document.getElementById('print-root'));
 }
 function rowHtml(r){
   var dec = r.decision || '未填寫';
@@ -77,33 +76,17 @@ function rowHtml(r){
     '<td class="' + c + '">' + esc(dec) + '</td>' +
     '<td class="center">' + sigCell(r) + '</td></tr>';
 }
-// 簽名圖片：只走自有代理出圖（GET ?file=<id>&key=<密鑰> → GAS 出圖，不登入 Drive 也看得到）。
-// 失敗時由 readySig 自動重試一次；仍失敗就在格子裡顯示「✕」（不會自己消失）。
+// 簽名圖片：資料封包已把簽名圖以 Base64 一起帶回（signB64），直接內嵌 data: URI，
+// 不再發第二次 GET 請求 → 不受 Worker GET／doGet 斷線影響，一定能顯示、一定能印。
+// 萬一哪一列沒帶到（讀圖失敗），放一個「✕」可點開原始 Drive 網址。
 function sigCell(r){
-  if (!r.sign) return '';
-  var id = fileId(r.sign);
-  if (!id) return '';
-  var fb = String(APP.API_URL || '').replace(/\/+$/, '');
-  if (!fb) return '';
-  var src = fb + '?file=' + id + '&key=' + encodeURIComponent(KEY.trim());
-  return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">' +
-    '<img data-src="' + esc(src) + '" src="' + esc(src) + '" alt="簽名">' +
-    '<span class="sig-err">✕ 圖讀不到</span></a>';
-}
-// Drive 網址 → 檔案 ID（ff.id 或 /file/d/ID 兩種常見格式都吃）
-function fileId(url){
-  var m = String(url).match(/[?&]id=([A-Za-z0-9_-]+)/) || String(url).match(/\/d\/([A-Za-z0-9_-]+)/);
-  return m ? encodeURIComponent(m[1]) : '';
-}
-// 圖載失敗 → 1.2 秒後用原網址重試一次（GAS 冷啟動常這樣）；還失敗標記「✕」
-function readySig(root){
-  Array.prototype.forEach.call(root.querySelectorAll('.sigl img'), function(img){
-    var retried = false;
-    img.addEventListener('error', function(){
-      if (!retried){ retried = true; setTimeout(function(){ img.src = img.dataset.src || img.src; }, 1200); }
-      else { img.closest('.sigl').classList.add('bad'); }
-    });
-  });
+  if (r.signB64){
+    return '<span class="sigl"><img src="data:image/png;base64,' + r.signB64 + '" alt="簽名"></span>';
+  }
+  if (r.sign){
+    return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>';
+  }
+  return '';
 }
 // 載入後幾秒檢查一次：有簽名圖讀不到就在最上方補一行除錯提示（重試跑完再判斷）
 function hintBadSig(){
