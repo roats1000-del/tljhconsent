@@ -337,8 +337,8 @@ function doPaperPrint(){
       '<p class="pf-id">學號：' + esc(r.id) + '　　學生姓名：' + esc(r.name || '') +
       '　　與學生關係：<span class="pf-blank"></span>（請簽署人自填）</p>' +
       '<div class="consent">' + esc(CONSENT_TEXT) + '</div>' +
-      '<p class="pf-check">□ 本人已詳閱並了解上述同意書內容</p>' +
-      '<p class="pf-choice">本人與學生選擇：&nbsp;&nbsp;□ 同意&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;□ 不同意</p>' +
+      '<p class="pf-check"><span class="ck">□</span> 本人已詳閱並了解上述同意書內容</p>' +
+      '<p class="pf-choice">本人與學生選擇：&nbsp;&nbsp;<span class="ck">□</span> 同意&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ck">□</span> 不同意</p>' +
       '<div class="pf-sign"><p>簽署人簽名：<span class="pf-blank"></span></p></div>' +
       '<p class="pf-date">製表日期：' + esc(ds) + '</p>' +
       '</section>';
