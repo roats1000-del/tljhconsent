@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>學生肖像權同意狀態查詢</title>
+<link rel="stylesheet" href="css/style.css?v=6">
+</head>
+<body class="teacher">
+
+<h1>學生肖像權同意狀態查詢</h1>
+<p style="font-size:13px;color:#64748b">僅可查閱，未簽署者請以既有管道通知家長<br>
+<span style="color:#b45309">⚠ 資安提醒：本頁含個資，僅限校內相關人員查閱，請勿對外公開或轉傳。</span></p>
+
+<div class="filters">
+  <select id="grade" onchange="gradeChange()"><option value="">全部年級</option></select>
+  <select id="cls"><option value="">全部班級</option></select>
+  <select id="dec"><option value="">全部選項</option><option>同意</option><option>不同意</option><option>未填寫</option></select>
+  <input class="search" id="q" type="search" placeholder="搜尋學號，多個以空格分隔（如 111001 111002 1110）"
+         oninput="render(document.querySelector('#tbody')._rows)">
+  <button class="btn" onclick="doQuery()">查詢</button>
+</div>
+<div id="summary"></div>
+
+<table>
+  <thead><tr><th>班級</th><th>座號</th><th>學號</th><th>選項</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<p class="credit"><a href="https://sites.google.com/view/roats1000" target="_blank" rel="noopener">開發者：資訊組張佑正</a></p>
+
+<script src="js/config.js?v=6"></script>
+<script src="js/api.js?v=6"></script>
+<script src="js/query.js?v=6"></script>
+
+</body>
+</html>
