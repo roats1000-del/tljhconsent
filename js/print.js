@@ -11,6 +11,7 @@
 var KEY = (new URLSearchParams(location.search)).get('key') || '';
 
 var LAST = [];            // 後端回傳的表單資料（預留 sign 網址，圖片另外分批撈）
+var INFO = {};            // 學號 → 該列資料（含 name），供紙本選取清單與紙本表單使用
 var IMG = {};             // 學號 → 簽名圖 signB64（批次載入後填充）
 var imgPending = false;   // 是否仍有批次在撈圖
 var imgTotal = 0, imgDone = 0;
@@ -24,6 +25,8 @@ function load(){
     if (d.error){ document.getElementById('summary').textContent = d.error; return; }
     if (d.title){ document.getElementById('summary').textContent = d.title + (d.body ? '：' + d.body : ''); return; }
     LAST = d.rows || [];
+    INFO = {};
+    LAST.forEach(function(r){ if (r.id) INFO[r.id] = r; });
     fillSelectors(d);
     startBatch();         // 先啟動撈圖（內部 set imgPending 並 render），首次就不會先閃 ✕
   }).catch(function(e){
@@ -75,7 +78,7 @@ function needsImages(){
   LAST.forEach(function(r){
     if (g && r.cls.split('年')[0] !== g) return;
     if (c && r.cls !== c) return;
-    if (!r.sign || IMG[r.id]) return;      // 沒簽名或已有圖的不用撈
+    if (!r.sign || r.paper || IMG[r.id]) return;      // 未簽／紙本列／已有圖的不用撈
     if (!seen[r.cls]){ seen[r.cls] = 1; order.push(r.cls); }
   });
   return order;
@@ -107,6 +110,7 @@ function startBatch(){
       if (d && !d.error && d.rows){
         var missing = 0;
         d.rows.forEach(function(r){
+          if (r.paper) return;             // 紙本列沒有簽名圖，不視為失敗
           if (r.signB64){ IMG[r.id] = r.signB64; }
           else if (r.sign){ delete IMG[r.id]; missing++; }
         });
@@ -136,7 +140,7 @@ function retryImages(){
 function render(){
   var rows = currentRows();
   var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
-  var missing = rows.filter(function(r){ return r.sign && !IMG[r.id]; }).length;
+  var missing = rows.filter(function(r){ return r.sign && !r.paper && !IMG[r.id]; }).length;
   var prog = imgPending ? '｜簽名圖載入中…（' + imgDone + '/' + imgTotal + ' 班）' :
              (missing ? '｜簽名圖載入失敗 ' + missing + ' 張' : (imgTotal ? '｜簽名圖已全部載入' : ''));
   var msg = '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length - done) + '），每班獨立一頁列印' + prog;
@@ -163,6 +167,7 @@ function render(){
       '<div class="teacher-footer"><p class="security-note">⚠ 資安提醒：本頁含個資，請勿對外公開或轉傳。</p>' +
       '<p class="teacher-sign">導師簽名：<span class="sign-line"></span></p></div></section>';
   }).join('');
+  renderSel();   // 每次畫面刷新同步重建「紙本選取清單」（保留已勾選的學生）
 }
 // 一班的表格切成「左右兩欄並排」（各約一半），30 人能在兩面 A4 內完整呈現
 function classTables(list){
@@ -189,6 +194,9 @@ function rowHtml(r){
 // 簽名圖片：用分批撈回的 IMG 填充（data: URI 內嵌，能看到就一定能印）。
 // 尚未撈到 → 輕量空白佔位（維持版型）；撈失敗 → ✕（點開原始 Drive 網址）。
 function sigCell(r){
+  if (r.paper && r.sign){
+    return '<a class="sigl paper" href="' + esc(r.sign) + '" target="_blank" rel="noopener">紙本</a>';
+  }
   if (IMG[r.id]){
     return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>';
   }
@@ -202,8 +210,8 @@ function doPrint(){
   var root = document.getElementById('print-root');
   if (!root.innerHTML){ alert('尚無資料可列印。'); return; }
   whenImagesDone().then(function(){
-    // 撈圖結束後再統計「有簽名卻沒有圖」的列（印出來會是空白）
-    var failed = LAST.filter(function(r){ return r.sign && !IMG[r.id]; }).length;
+    // 撈圖結束後再統計「有簽名卻沒有圖」的列（印出來會是空白；紙本列不算）
+    var failed = LAST.filter(function(r){ return r.sign && !r.paper && !IMG[r.id]; }).length;
     if (failed && !confirm(failed + ' 位家長簽名圖未載入（會印成空白）。確定仍要列印嗎？')) return;
     waitImages(root).then(function(){
       var broken = Array.prototype.filter.call(root.querySelectorAll('.sigl img'),
@@ -234,6 +242,116 @@ function waitImages(root){
     });
   }));
 }
+// ---------- 工具區：紙本掃描同步（doSync）＋簽署用紙本選取／列印 ----------
+// paper 列的簽名欄是「紙本」超連結（可點開掃描檔），不走簽名圖批次；
+// 因此 needsImages 與失敗統計會自動排除 paper 列（見上方）。
+function doSync(){
+  var el = document.getElementById('syncResult');
+  if (!el) return;
+  el.innerHTML = '同步中…';
+  apiCall('syncScans', { key: KEY.trim() }).then(function(d){
+    if (!d){ el.textContent = '同步失敗（伺服器沒有回應）。'; return; }
+    if (d.error){ el.textContent = d.error; return; }
+    if (d.title){ el.textContent = d.title + (d.body ? '：' + d.body : ''); return; }
+    var parts = ['成功 ' + d.ok + ' 筆', '失敗 ' + d.fail + ' 筆'];
+    if (d.conflict) parts.push('需行政處理 ' + d.conflict + ' 筆');
+    var html = esc(parts.join('、'));
+    if ((d.fails || []).length) html += '<span class="err">' + esc(d.fails.join('；')) + '</span>';
+    if ((d.conflicts || []).length) html += '<span class="err">衝突學號：' + esc(d.conflicts.join('、')) + '</span>';
+    el.innerHTML = html;
+    load();   // 重整資料＋班級表＋紙本選取清單
+  }).catch(function(e){
+    el.textContent = '同步失敗：' + String((e && e.message) || e);
+  });
+}
+
+// 依目前篩選（年級＋班級＋選項）重建紙本選取清單，並保留已勾選狀態
+function renderSel(){
+  var el = document.getElementById('selStudents');
+  if (!el) return;
+  var keep = {};
+  Array.prototype.forEach.call(el.querySelectorAll('input:checked'),
+    function(c){ keep[c.getAttribute('data-id')] = 1; });
+  var rows = currentRows().filter(function(r){ return INFO[r.id]; });
+  var byCls = {}, order = [];
+  rows.forEach(function(r){
+    if (!byCls[r.cls]){ byCls[r.cls] = []; order.push(r.cls); }
+    byCls[r.cls].push(r);
+  });
+  el.innerHTML = order.map(function(cls){
+    return '<div class="sel-cls"><b>' + esc(cls) + '</b></div>' +
+      byCls[cls].map(function(r){
+        var dec = r.decision || '未填寫';
+        var sc = r.decision === '同意' ? 'ok' : (r.decision === '不同意' ? 'no' : 'na');
+        var checked = keep[r.id] ? ' checked' : '';
+        return '<label class="sel-item' + (checked ? ' checked' : '') + '">' +
+          '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updCount()"> ' +
+          esc(r.id) + ' ' + esc(INFO[r.id].name || '') +
+          ' <span class="' + sc + '">' + esc(dec) + '</span>' +
+          (r.paper ? ' <span class="badge-paper">紙本</span>' : '') +
+          '</label>';
+      }).join('');
+  }).join('');
+  updCount();
+}
+function updCount(){
+  var boxes = document.querySelectorAll('#selStudents input[type=checkbox]:checked');
+  var cnt = document.getElementById('selCount');
+  if (cnt) cnt.textContent = String(boxes.length);
+  Array.prototype.forEach.call(document.querySelectorAll('#selStudents .sel-item'),
+    function(l){ l.className = l.className.replace(/ checked/g, ''); });
+  Array.prototype.forEach.call(boxes, function(c){
+    var l = c.closest('label'); if (l) l.className += ' checked';
+  });
+}
+function selAll(){
+  Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
+    function(c){ c.checked = true; });
+  updCount();
+}
+function selUnsigned(){
+  Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
+    function(c){
+      var r = INFO[c.getAttribute('data-id')] || {};
+      c.checked = !(r.decision === '同意' || r.decision === '不同意');
+    });
+  updCount();
+}
+function selClear(){
+  Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
+    function(c){ c.checked = false; });
+  updCount();
+}
+// 把勾選學生套印成 A4 直式簽署用紙本（一位一張），印完自動還原螢幕
+function doPaperPrint(){
+  var ids = [];
+  Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]:checked'),
+    function(c){ ids.push(c.getAttribute('data-id')); });
+  if (!ids.length){ alert('請先勾選學生，再列印簽署用紙本。'); return; }
+  var now = new Date();
+  var ds = now.getFullYear() + ' 年 ' + (now.getMonth() + 1) + ' 月 ' + now.getDate() + ' 日';
+  var forms = ids.map(function(id){
+    var r = INFO[id] || {};
+    return '<section class="paper-form">' +
+      '<h2>' + esc(APP.SCHOOL) + ' 學生肖像權使用同意書</h2>' +
+      '<p class="pf-id">學號：' + esc(r.id) + '　　學生姓名：' + esc(r.name || '') +
+      '　　與學生關係：<span class="pf-blank"></span>（請簽署人自填）</p>' +
+      '<div class="consent">' + esc(CONSENT_TEXT) + '</div>' +
+      '<p class="pf-check">□ 本人已詳閱並了解上述同意書內容</p>' +
+      '<p class="pf-choice">本人與學生選擇：&nbsp;&nbsp;□ 同意&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;□ 不同意</p>' +
+      '<div class="pf-sign"><p>簽署人簽名：<span class="pf-blank"></span></p></div>' +
+      '<p class="pf-date">製表日期：' + esc(ds) + '</p>' +
+      '</section>';
+  }).join('');
+  document.getElementById('paper-root').innerHTML = forms;
+  document.body.classList.add('paper');
+  window.print();
+}
+window.onafterprint = function(){
+  document.body.classList.remove('paper');
+  document.getElementById('paper-root').innerHTML = '';
+  updCount();
+};
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
