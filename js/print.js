@@ -4,7 +4,7 @@
 //
 // 效能策略（500 人整校列印不會卡死）：
 //   ① 先送「meta」→ 只回表單資料（班級/座號/學號/選項＋簽名網址），不碰任何圖，立刻把整張表畫出來。
-//   ② 再依「班級」分批撈圖（每次 2 個請求並行，一班約 30 張圖、幾百 KB），逐班填充＋進度顯示。
+//   ② 再依「班級」逐班撈圖（一次一班，一班約 30 張圖、幾百 KB），逐班填充＋進度顯示。
 //      GAS 不會一口氣做 500 次 Drive 讀取而逼近 6 分鐘執行上限；回應也小於 1MB／批。
 //   ③ 同一張圖 GAS 端有 CacheService 快取，重複列印幾乎秒開。
 
@@ -159,10 +159,23 @@ function render(){
     return '<section class="class-block"><h2>' + esc(cls) + '</h2>' +
       '<p class="cls-summary">共 ' + list.length + ' 人｜線上已簽 ' + d +
       ' 人｜待補簽 ' + (list.length - d) + ' 人</p>' +
-      '<table><thead><tr><th>學號</th><th>座號</th><th>選項</th><th>家長簽名</th></tr></thead>' +
-      '<tbody>' + list.map(rowHtml).join('') + '</tbody></table>' +
-      '<p class="teacher-sign">導師簽名：<span class="sign-line"></span></p></section>';
+      classTables(list) +
+      '<p class="teacher-sign">導師簽名：<span class="sign-line"></span></p>' +
+      '<p class="security-note">⚠ 資安提醒：本頁含個資，請勿對外公開或轉傳。</p></section>';
   }).join('');
+}
+// 一班的表格切成「左右兩欄並排」（各約一半），30 人能在兩面 A4 內完整呈現
+function classTables(list){
+  var half = Math.ceil(list.length / 2);
+  var left = list.slice(0, half);
+  var right = list.slice(half);
+  return '<div class="cols">' +
+    '<table>' + tblHead() + '<tbody>' + left.map(rowHtml).join('') + '</tbody></table>' +
+    (right.length ? '<table>' + tblHead() + '<tbody>' + right.map(rowHtml).join('') + '</tbody></table>' : '') +
+    '</div>';
+}
+function tblHead(){
+  return '<thead><tr><th>學號</th><th>座號</th><th>選項</th><th>家長簽名</th></tr></thead>';
 }
 function rowHtml(r){
   var dec = r.decision || '未填寫';
