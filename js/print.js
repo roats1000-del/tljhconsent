@@ -160,8 +160,8 @@ function render(){
       '<p class="cls-summary">共 ' + list.length + ' 人｜線上已簽 ' + d +
       ' 人｜待補簽 ' + (list.length - d) + ' 人</p>' +
       classTables(list) +
-      '<div class="teacher-footer"><p class="teacher-sign">導師簽名：<span class="sign-line"></span></p>' +
-      '<p class="security-note">⚠ 資安提醒：本頁含個資，請勿對外公開或轉傳。</p></div></section>';
+      '<div class="teacher-footer"><p class="security-note">⚠ 資安提醒：本頁含個資，請勿對外公開或轉傳。</p>' +
+      '<p class="teacher-sign">導師簽名：<span class="sign-line"></span></p></div></section>';
   }).join('');
 }
 // 一班的表格切成「左右兩欄並排」（各約一半），30 人能在兩面 A4 內完整呈現
