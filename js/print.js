@@ -194,8 +194,10 @@ function rowHtml(r){
 // 簽名圖片：用分批撈回的 IMG 填充（data: URI 內嵌，能看到就一定能印）。
 // 尚未撈到 → 輕量空白佔位（維持版型）；撈失敗 → ✕（點開原始 Drive 網址）。
 function sigCell(r){
-  if (r.paper && r.sign){
-    return '<a class="sigl paper" href="' + esc(r.sign) + '" target="_blank" rel="noopener">紙本</a>';
+  if (r.paper){
+    return r.sign
+      ? '<a class="sigl paper" href="' + esc(r.sign) + '" target="_blank" rel="noopener">紙本</a>'
+      : '<span class="sigl paper">紙本</span>';
   }
   if (IMG[r.id]){
     return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>';
