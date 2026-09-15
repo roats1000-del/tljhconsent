@@ -175,7 +175,9 @@ function classTables(list){
     '</div>';
 }
 function tblHead(){
-  return '<thead><tr><th>學號</th><th>座號</th><th>選項</th><th>家長簽名</th></tr></thead>';
+  // 固定欄寬：表頭先宣告四欄比例，影像插入後欄寬不再被內容擠動
+  return '<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>' +
+    '<thead><tr><th>學號</th><th>座號</th><th>選項</th><th>家長簽名</th></tr></thead>';
 }
 function rowHtml(r){
   var dec = r.decision || '未填寫';
