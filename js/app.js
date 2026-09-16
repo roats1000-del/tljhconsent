@@ -33,6 +33,17 @@ cv.addEventListener('pointermove', function(e){
 });
 function clearSig(){ touched = false; ctx.clearRect(0,0,cv.width,cv.height); }
 
+// 是否有實際筆跡：掃描畫布像素，任一像素不透明（alpha>0）即視為已簽名。
+// 比「是否有碰過畫布」可靠：resize 會自動清空畫布、只點一下沒畫、clearSig 後，
+// 這些情況畫布都是全透明，等同空白簽名，送出時一律擋下重新簽。
+function hasInk(){
+  var d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+  for (var i = 3; i < d.length; i += 4){
+    if (d[i]) return true;
+  }
+  return false;
+}
+
 // QR 選用：網址帶 ?src=學號 時自動帶入學號並鎖定（姓名仍須手填，防學號枚舉洩漏）
 (function(){
   var q = (new URLSearchParams(location.search)).get('src') || '';
@@ -58,7 +69,7 @@ function beforeSubmit(ev){
   var v = document.querySelector('input[name=choice]:checked');
   if (!v){ err.textContent = '請選擇「同意」或「不同意」。'; return; }
   if (!signer){ err.textContent = '請輸入簽署人姓名。'; return; }
-  if (!touched){ err.textContent = '請在簽名框內親筆簽名。'; return; }
+  if (!hasInk()){ err.textContent = '請在簽名框內親筆簽名。'; return; }
 
   var p = {
     sid:    sid,
