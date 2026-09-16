@@ -6,10 +6,20 @@ var ctx = cv.getContext('2d');
 var drawing = false, touched = false;
 
 function fit(){
-  cv.width = cv.clientWidth * 2;
-  cv.height = 160 * 2;
+  var w = Math.round(cv.clientWidth * 2), h = 160 * 2;
+  if (!w || !h) return;
+  if (w === cv.width && h === cv.height) return;   // 尺寸沒變→完全不動畫布（避免 scroll 觸發的 resize 誤清空）
+  // 有筆跡先快照，重設寬高後等比還原：往下滑／轉向引起的 resize 不再吃掉簽名
+  var snap = null;
+  if (hasInk()){
+    snap = document.createElement('canvas');
+    snap.width = cv.width; snap.height = cv.height;
+    snap.getContext('2d').drawImage(cv, 0, 0);
+  }
+  cv.width = w; cv.height = h;
   ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.strokeStyle = '#111';
+  if (snap) ctx.drawImage(snap, 0, 0, w, h);
 }
 fit();
 window.addEventListener('resize', fit);
