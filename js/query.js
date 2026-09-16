@@ -46,7 +46,7 @@ function render(rows){
   if (dec){
     rows = rows.filter(function(r){ return (r.decision || '未填寫') === dec; });
   }
-  var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
+  var done = rows.filter(function(r){ return !!r.decision; }).length;
   document.getElementById('summary').textContent =
     '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length-done) + '），依班級、座號排序';
   document.getElementById('tbody').innerHTML = rows.map(function(r){

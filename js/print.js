@@ -139,7 +139,7 @@ function retryImages(){
 
 function render(){
   var rows = currentRows();
-  var done = rows.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
+  var done = rows.filter(function(r){ return !!r.decision; }).length;
   var missing = rows.filter(function(r){ return r.sign && !r.paper && !IMG[r.id]; }).length;
   var prog = imgPending ? '｜簽名圖載入中…（' + imgDone + '/' + imgTotal + ' 班）' :
              (missing ? '｜簽名圖載入失敗 ' + missing + ' 張' : (imgTotal ? '｜簽名圖已全部載入' : ''));
@@ -159,7 +159,7 @@ function render(){
   });
   document.getElementById('print-root').innerHTML = order.map(function(cls){
     var list = byCls[cls];
-    var d = list.filter(function(r){ return r.decision === '同意' || r.decision === '不同意'; }).length;
+    var d = list.filter(function(r){ return !!r.decision; }).length;
     return '<section class="class-block"><h2>' + esc(cls) + '</h2>' +
       '<p class="cls-summary">共 ' + list.length + ' 人｜線上已簽 ' + d +
       ' 人｜待補簽 ' + (list.length - d) + ' 人</p>' +
@@ -315,7 +315,7 @@ function selUnsigned(){
   Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
     function(c){
       var r = INFO[c.getAttribute('data-id')] || {};
-      c.checked = !(r.decision === '同意' || r.decision === '不同意');
+      c.checked = !r.decision;
     });
   updCount();
 }
