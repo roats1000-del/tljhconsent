@@ -15,7 +15,7 @@
 <div class="filters">
   <select id="grade" onchange="gradeChange()"><option value="">全部年級</option></select>
   <select id="cls"><option value="">全部班級</option></select>
-  <select id="dec"><option value="">全部選項</option><option>同意</option><option>不同意</option><option>未填寫</option></select>
+  <select id="dec"><option value="">全部選項</option><option>同意</option><option>部分同意</option><option>條件同意</option><option>不同意</option><option>未填寫</option></select>
   <input class="search" id="q" type="search" placeholder="搜尋學號，多個以空格分隔（如 111001 111002 1110）"
          oninput="render(document.querySelector('#tbody')._rows)">
   <button class="btn" onclick="doQuery()">查詢</button>
@@ -31,7 +31,7 @@
 
 <script src="js/config.js?v=6"></script>
 <script src="js/api.js?v=6"></script>
-<script src="js/query.js?v=6"></script>
+<script src="js/query.js?v=7"></script>
 
 </body>
 </html>
