@@ -65,7 +65,7 @@ function currentRows(){
   return LAST.filter(function(r){
     if (g && r.cls.split('年')[0] !== g) return false;
     if (c && r.cls !== c) return false;
-    if (dec && (r.decision || '未填寫') !== dec) return false;
+    if (dec && !matchDec(r.decision, dec)) return false;
     return true;
   });
 }

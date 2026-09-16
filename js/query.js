@@ -42,9 +42,9 @@ function filterRows(rows, q){
 }
 function render(rows){
   rows = filterRows(rows || [], document.getElementById('q').value);
-  var dec = document.getElementById('dec').value;                 // 選項篩選：同意／不同意／未填寫
+  var dec = document.getElementById('dec').value;                 // 選項篩選：同意（含部分/條件）、不同意、未填寫
   if (dec){
-    rows = rows.filter(function(r){ return (r.decision || '未填寫') === dec; });
+    rows = rows.filter(function(r){ return matchDec(r.decision, dec); });
   }
   var done = rows.filter(function(r){ return !!r.decision; }).length;
   document.getElementById('summary').textContent =
