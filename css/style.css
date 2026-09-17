@@ -43,6 +43,7 @@ body.teacher table th,body.teacher table td{border:1px solid #64748b;text-align:
 th{background:#f1f5f9}
 td.ok{background:#dcfce7;color:#166534;text-align:center}
 td.no{background:#fee2e2;color:#991b1b;text-align:center}
+td.part{background:#fef9c3;color:#854d0e;text-align:center}
 td.na{color:#94a3b8;text-align:center}
 td.center{text-align:center}
 /* 紙本簽署標籤：查詢／列印頁標示「該紀錄來自紙本簽署」 */
