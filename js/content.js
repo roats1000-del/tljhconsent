@@ -21,11 +21,23 @@ var CONSENT_TEXT = '本校學生肖像權使用同意書\n' +
 '四、其他\n' +
 '本同意書以表單留存紀錄，作為學校使用之授權依據。';
 
-// 意願篩選對照：選「同意」＝聚合「同意＋部分同意＋條件同意」；其餘選項為精確比對（未填寫＝無決定）。
+// 意願篩選對照：選「同意」＝聚合「同意＋部分同意＋條件同意＋條件+部分同意」；其餘選項為精確比對（未填寫＝無決定）。
 function matchDec(decision, filter){
   if (!filter) return true;
   if (filter === '同意'){
-    return decision === '同意' || decision === '部分同意' || decision === '條件同意';
+    return decision === '同意'
+      || decision === '部分同意'
+      || decision === '條件同意'
+      || decision === '條件+部分同意';
   }
   return (decision || '未填寫') === filter;
+}
+
+// 決定值著色：同意＝綠、部分/條件同意＝黃（含手動輸入的複合值，如「部分同意＋條件同意」）、不同意＝紅、其餘＝灰
+function decClass(decision){
+  decision = decision || '';
+  if (decision === '同意') return 'ok';
+  if (decision.indexOf('部分同意') >= 0 || decision.indexOf('條件同意') >= 0) return 'part';
+  if (decision === '不同意') return 'no';
+  return 'na';
 }

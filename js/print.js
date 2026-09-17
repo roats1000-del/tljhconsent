@@ -186,7 +186,7 @@ function tblHead(){
 }
 function rowHtml(r){
   var dec = r.decision || '未填寫';
-  var c = r.decision === '同意' ? 'ok' : (r.decision === '不同意' ? 'no' : 'na');
+  var c = decClass(r.decision);
   return '<tr><td>' + esc(r.id) + '</td><td class="center">' + esc(r.seat) + '</td>' +
     '<td class="' + c + '">' + esc(dec) + '</td>' +
     '<td class="center">' + sigCell(r) + '</td></tr>';
@@ -284,7 +284,7 @@ function renderSel(){
     return '<div class="sel-cls"><b>' + esc(cls) + '</b></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
-        var sc = r.decision === '同意' ? 'ok' : (r.decision === '不同意' ? 'no' : 'na');
+        var sc = decClass(r.decision);
         var checked = keep[r.id] ? ' checked' : '';
         return '<label class="sel-item' + (checked ? ' checked' : '') + '">' +
           '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updCount()"> ' +
