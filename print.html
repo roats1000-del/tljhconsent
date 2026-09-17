@@ -22,7 +22,7 @@
 #print-root .cols col.c4{width:50%}
 #print-root .cols td{box-sizing:border-box;height:60px;padding:4px 5px;overflow:hidden}
 #print-root .cols tbody tr{height:60px}
-#print-root .cols td.c1,#print-root .cols td.c2{white-space:nowrap}
+#print-root .cols td.c1,#print-root .cols td.c2,#print-root .cols td.c3{white-space:nowrap}
 .teacher-footer{display:flex;justify-content:space-between;align-items:flex-start;margin-top:6px;page-break-inside:avoid}
 .teacher-sign{margin:30px 0 0;font-size:14px;color:#1e293b}
 .teacher-sign .sign-line{display:inline-block;width:14em;border-bottom:1px solid #94a3b8}
@@ -100,7 +100,7 @@
 <div class="filters print-tools">
   <select id="grade" onchange="gradeChange()"><option value="">全部年級</option></select>
   <select id="cls" onchange="clsChange()"><option value="">全部班級</option></select>
-  <select id="dec"><option value="">全部選項</option><option>同意</option><option>部分同意</option><option>條件同意</option><option>不同意</option><option>未填寫</option></select>
+  <select id="dec"><option value="">全部選項</option><option>同意</option><option>部分同意</option><option>條件同意</option><option>條件+部分同意</option><option>不同意</option><option>未填寫</option></select>
   <button class="btn" onclick="doPrint()">列印所有班級</button>
 </div>
 

@@ -9,17 +9,18 @@
 <body class="teacher">
 
 <h1>學生肖像權同意狀態查詢</h1>
-<p style="font-size:13px;color:#64748b">僅可查閱，未簽署者請以既有管道通知家長<br>
+<p style="font-size:14px;color:#64748b">僅可查閱，未簽署者請以既有管道通知家長<br>
 <span style="color:#334155;display:inline-block;margin:2px 0 6px">選項說明：<br>
-・同意：我同意學校、導師拍攝我孩子參與課堂與活動的照片及影片做為教育目的使用。<br>
-・條件同意：同意拍攝，但不希望清楚露出孩子正臉。<br>
+・同意：我同意學校、導師拍攝我孩子參與課堂與活動的照片及影片做為公開教育目的使用。<br>
+・部分同意：同意但僅限於班級內使用。<br>
+・條件同意：同意但限於模糊、手部等，不希望清楚露出孩子正臉。<br>
 ・不同意：我不同意拍攝我孩子的肖像，並請老師於拍照時協助避免孩子入鏡。</span><br>
 <span style="color:#b45309">⚠ 資安提醒：本頁含個資，僅限校內相關人員查閱，請勿對外公開或轉傳。</span></p>
 
 <div class="filters">
   <select id="grade" onchange="gradeChange()"><option value="">全部年級</option></select>
   <select id="cls"><option value="">全部班級</option></select>
-  <select id="dec"><option value="">全部選項</option><option>同意</option><option>部分同意</option><option>條件同意</option><option>不同意</option><option>未填寫</option></select>
+  <select id="dec"><option value="">全部選項</option><option>同意</option><option>部分同意</option><option>條件同意</option><option>條件+部分同意</option><option>不同意</option><option>未填寫</option></select>
   <input class="search" id="q" type="search" placeholder="搜尋學號，多個以空格分隔（如 111001 111002 1110）"
          oninput="render(document.querySelector('#tbody')._rows)">
   <button class="btn" onclick="doQuery()">查詢</button>
