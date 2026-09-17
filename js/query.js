@@ -51,7 +51,7 @@ function render(rows){
     '共 ' + rows.length + ' 人（已填 ' + done + '、未填 ' + (rows.length-done) + '），依班級、座號排序';
   document.getElementById('tbody').innerHTML = rows.map(function(r){
     var dec = r.decision || '未填寫';
-    var c = r.decision === '同意' ? 'ok' : (r.decision === '不同意' ? 'no' : 'na');
+    var c = decClass(r.decision);
     return '<tr><td>' + esc(r.cls) + '</td><td class="center">' + esc(r.seat) +
       '</td><td>' + esc(r.id) + '</td><td class="' + c + '">' + esc(dec) +
       (r.paper ? ' <span class="badge-paper">紙本</span>' : '') + '</td></tr>';
