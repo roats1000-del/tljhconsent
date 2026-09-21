@@ -53,7 +53,7 @@ function render(rows){
     var dec = r.decision || '未填寫';
     var c = decClass(r.decision);
     return '<tr><td>' + esc(r.cls) + '</td><td class="center">' + esc(r.seat) +
-      '</td><td>' + esc(r.id) + '</td><td class="' + c + '">' + esc(dec) +
+      '</td><td>' + esc(r.name || '') + '</td><td>' + esc(r.id) + '</td><td class="' + c + '">' + esc(dec) +
       (r.paper ? ' <span class="badge-paper">紙本</span>' : '') + '</td></tr>';
   }).join('');
 }
