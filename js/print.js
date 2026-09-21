@@ -24,7 +24,7 @@ function load(){
     if (!d){ document.getElementById('summary').textContent = '讀取失敗（伺服器沒有回應）。'; return; }
     if (d.error){ document.getElementById('summary').textContent = d.error; return; }
     if (d.title){ document.getElementById('summary').textContent = d.title + (d.body ? '：' + d.body : ''); return; }
-    LAST = d.rows || [];
+    LAST = sortRows(d.rows || []);
     INFO = {};
     LAST.forEach(function(r){ if (r.id) INFO[r.id] = r; });
     fillSelectors(d);
@@ -359,6 +359,21 @@ window.onafterprint = function(){
 };
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// 年級固定順序（七→八→九→其他）；班級內再照班名、座號排
+function gradeRankOf(cls){
+  var g = String(cls || '').split('年')[0];
+  var rank = { '七':1, '八':2, '九':3 };
+  return (g in rank) ? rank[g] : 99;
+}
+function sortRows(rows){
+  return rows.slice().sort(function(a,b){
+    var r = gradeRankOf(a.cls) - gradeRankOf(b.cls);
+    if (r) return r;
+    r = String(a.cls || '').localeCompare(String(b.cls || ''), 'zh-Hant');
+    if (r) return r;
+    return String(a.seat || '').localeCompare(String(b.seat || ''), 'zh-Hant', {numeric:true});
+  });
+}
 
 if (!KEY.trim()){
   document.getElementById('summary').textContent = '存取被拒絕（缺少密鑰）。';

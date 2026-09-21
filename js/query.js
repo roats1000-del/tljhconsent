@@ -7,7 +7,7 @@ function api(f, cb){
     if (!d){ document.getElementById('summary').textContent = '讀取失敗（伺服器沒有回應）。'; return; }
     if (d.error){ document.getElementById('summary').textContent = d.error; return; }
     if (d.title){ document.getElementById('summary').textContent = d.title + (d.body ? '：' + d.body : ''); return; }
-    applyData(d); render(d.rows);
+    applyData(d); render(document.getElementById('tbody')._rows);
   }).catch(function(e){
     document.getElementById('summary').textContent = '讀取失敗：' + String((e && e.message) || e);
   });
@@ -33,7 +33,22 @@ function applyData(d){
   clsEl.innerHTML = '<option value="">全部班級</option>' + (d.classes || []).map(function(c){
     return '<option' + (c===pc ? ' selected' : '') + '>' + esc(c) + '</option>';
   }).join('');
-  document.getElementById('tbody')._rows = d.rows || [];   // 存供搜尋框即時過濾
+  document.getElementById('tbody')._rows = sortRows(d.rows || []);   // 存供搜尋框即時過濾
+}
+// 年級固定順序（七→八→九→其他）；班級內再照班名、座號排
+function gradeRankOf(cls){
+  var g = String(cls || '').split('年')[0];
+  var rank = { '七':1, '八':2, '九':3 };
+  return (g in rank) ? rank[g] : 99;
+}
+function sortRows(rows){
+  return rows.slice().sort(function(a,b){
+    var r = gradeRankOf(a.cls) - gradeRankOf(b.cls);
+    if (r) return r;
+    r = String(a.cls || '').localeCompare(String(b.cls || ''), 'zh-Hant');
+    if (r) return r;
+    return String(a.seat || '').localeCompare(String(b.seat || ''), 'zh-Hant', {numeric:true});
+  });
 }
 // 搜尋：多個學號以空格分隔；任一個 token 命中該生學號（前綴也行）即列出，可一次列出多人
 function filterRows(rows, q){
