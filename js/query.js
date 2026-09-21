@@ -24,7 +24,10 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function applyData(d){
   var gradeEl = document.getElementById('grade'), clsEl = document.getElementById('cls');
   var pg = gradeEl.value, pc = clsEl.value;
-  gradeEl.innerHTML = '<option value="">全部年級</option>' + (d.grades || []).map(function(g){
+  gradeEl.innerHTML = '<option value="">全部年級</option>' + (d.grades || []).slice().sort(function(a,b){
+    var rank = { '七':1, '八':2, '九':3 };
+    return (rank[a] || 99) - (rank[b] || 99);
+  }).map(function(g){
     return '<option' + (g===pg ? ' selected' : '') + '>' + esc(g) + '</option>';
   }).join('');
   clsEl.innerHTML = '<option value="">全部班級</option>' + (d.classes || []).map(function(c){
