@@ -30,7 +30,10 @@ function applyData(d){
   }).map(function(g){
     return '<option' + (g===pg ? ' selected' : '') + '>' + esc(g) + '</option>';
   }).join('');
-  clsEl.innerHTML = '<option value="">全部班級</option>' + (d.classes || []).map(function(c){
+  clsEl.innerHTML = '<option value="">全部班級</option>' + (d.classes || []).slice().sort(function(a,b){
+    var r = gradeRankOf(a) - gradeRankOf(b);
+    return r || String(a).localeCompare(String(b), 'zh-Hant');
+  }).map(function(c){
     return '<option' + (c===pc ? ' selected' : '') + '>' + esc(c) + '</option>';
   }).join('');
   document.getElementById('tbody')._rows = sortRows(d.rows || []);   // 存供搜尋框即時過濾
