@@ -176,12 +176,16 @@ function render(){
   renderSel();   // 每次畫面刷新同步重建「紙本選取清單」（保留已勾選的學生）
   renderPageSel();   // 同步重建「簽署書影像」勾選清單（保留已勾選的學生）
 }
-// 一班的表格切成「左右兩欄並排」（各約一半），30 人能在兩面 A4 內完整呈現
+// 一班的表格切成「左右兩欄並排」。
+// 人數多時（預設 >32）自動加上「人數較多」樣式，列印時縮小簽名圖與行距，
+// 讓資安提醒＋導師簽名區留在同一頁；真的塞不下才自然跨頁（.teacher-footer 為 avoid，
+// 會整塊跟著班級走，不會被拆到別班去）。
 function classTables(list){
   var half = Math.ceil(list.length / 2);
   var left = list.slice(0, half);
   var right = list.slice(half);
-  return '<div class="cols">' +
+  var dense = list.length > 32 ? ' dense' : '';
+  return '<div class="cols' + dense + '">' +
     '<table>' + tblHead() + '<tbody>' + left.map(rowHtml).join('') + '</tbody></table>' +
     (right.length ? '<table>' + tblHead() + '<tbody>' + right.map(rowHtml).join('') + '</tbody></table>' : '') +
     '</div>';
@@ -432,7 +436,6 @@ function sendPdfBatch(items, start, el){
   });
 }
 
-// ---------- 批次列印（路線 B）：合併成一份多頁 PDF ----------
 // ---------- 簽署書影像（N 欄）的學生勾選清單 ----------
 // 供「批次列印」挑選要合併列印哪些學生的簽署書影像；與「紙本選取清單」各自獨立。
 // 只列 N 欄已有影像的列（沒影像的按了也印不出來，直接不列，避免踩雷）。
@@ -454,7 +457,9 @@ function renderPageSel(){
     byCls[r.cls].push(r);
   });
   el.innerHTML = order.map(function(cls){
-    return '<div class="sel-cls"><b>' + esc(cls) + '</b></div>' +
+    return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
+      '<a href="javascript:void(0)" onclick="pageSelOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -489,16 +494,26 @@ function pageSelClear(){
     function(c){ c.checked = false; });
   updPageCount();
 }
-function pageSelAllCls(){
-  Array.prototype.forEach.call(document.querySelectorAll('#pageStudents .sel-cls'), function(clsEl){
-    var nxt = clsEl.nextElementSibling;
+// 點班級名稱 → 只勾選該班學生（其他班全部取消），並把畫面篩選切到該班
+function pageSelOnlyCls(cls){
+  Array.prototype.forEach.call(document.querySelectorAll('#pageStudents .sel-cls'), function(el){
+    var isTarget = el.getAttribute('data-cls') === cls;
+    var nxt = el.nextElementSibling;
     while (nxt && !nxt.classList.contains('sel-cls')){
       var bx = nxt.querySelector('input[type=checkbox]');
-      if (bx) bx.checked = true;
+      if (bx) bx.checked = isTarget;      // 目標班全選、其餘班全取消
       nxt = nxt.nextElementSibling;
     }
   });
   updPageCount();
+  // 把篩選切到該班，讓簽名核對頁同步
+  var g = document.getElementById('grade'), c = document.getElementById('cls');
+  if (g && c){
+    var parts = String(cls).split('年');
+    g.value = parts[0] || '';
+    c.value = cls;
+    c.dispatchEvent(new Event('change'));
+  }
 }
 // 依目前篩選、挑「N 欄已有簽署書影像」的紀錄，送去 GAS 合併成一份多頁 PDF 回傳，
 // 前端觸發下載；行政下載後直接用印表機「全部列印」一次印完。純臨時檔，不存 Drive、不動總表。
@@ -521,35 +536,26 @@ function batchPrintPdf(){
       : '目前勾選的學生沒有可批次列印的簽署書影像。';
     return;
   }
-  el.innerHTML = '合併中…（' + rows.length + ' 頁）';
-  apiCall('printPdf', { key: KEY.trim(), files: rows.map(function(r){ return r.page; }) })
+  el.innerHTML = '開啟列印視窗…（' + rows.length + ' 頁）';
+  apiCall('printPagesHtml', { key: KEY.trim(), files: rows.map(function(r){ return r.page; }),
+                              title: '簽署書影像（' + rows.length + ' 頁）' })
     .then(function(d){
-      if (!d){ el.textContent = '合併失敗（伺服器沒有回應）。'; return; }
-      if (d.error){
-        // 一定要把伺服器的逐檔原因顯示出來，否則只會看到籠統的「沒有可合併的圖檔」
-        var det = (d.skips || []).slice(0, 3).join('；');
-        el.textContent = d.error + ((d.skips || []).length
-          ? '　（' + d.skips.length + ' 張失敗）' + (det ? '：' + det : '')
-          : '　（伺服器未提供失敗原因）');
+      if (!d){ el.textContent = '失敗（伺服器沒有回應）。'; return; }
+      if (d.error){ el.textContent = d.error; return; }
+      if (!d.html){ el.textContent = '失敗（沒有回傳資料）。'; return; }
+      // 開新視窗直接列印圖片：不再組 PDF，畫質 100% 原圖
+      var w = window.open('', '_blank');
+      if (!w){
+        el.textContent = '瀏覽器擋住新視窗，請允許本頁開啟跳視窗後再按一次。';
         return;
       }
-      if (!d.b64){ el.textContent = '合併失敗（沒有回傳資料）。'; return; }
-      // base64 → Blob → 觸發下載
-      var bin = atob(d.b64);
-      var buf = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-      var blob = new Blob([buf], { type: 'application/pdf' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = d.name || '批次列印.pdf';
-      document.body.appendChild(a); a.click();
-      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-      var msg = '已合併 ' + d.count + ' 頁並開始下載（' + (d.name || '') + '），開檔後用印表機「全部列印」即可。';
-      if ((d.skips || []).length) msg += '　略過 ' + d.skips.length + ' 張：' + d.skips.join('；');
-      if (noPage) msg += '　另 ' + noPage + ' 筆尚未回填簽署書影像（未納入）。';
-      el.innerHTML = msg;
+      w.document.open();
+      w.document.write(d.html);
+      w.document.close();
+      el.textContent = '已開啟列印視窗（' + d.count + ' 頁）。若未自動跳視窗請按該視窗右上角的「列印」鈕。' +
+        (noPage ? '　另 ' + noPage + ' 筆尚未回填簽署書影像（未納入）。' : '');
     }).catch(function(e){
-      el.textContent = '合併失敗：' + String((e && e.message) || e);
+      el.textContent = '失敗：' + String((e && e.message) || e);
     });
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
