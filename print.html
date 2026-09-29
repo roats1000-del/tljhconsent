@@ -52,6 +52,8 @@
 .sel-list{margin-top:10px;max-height:300px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px}
 .sel-cls{font-size:14px;color:#334155;margin:8px 0 2px;padding-bottom:2px;border-bottom:1px solid #e2e8f0}
 .sel-cls b{color:#0f172a}
+.sel-cls b a{color:#0f172a;cursor:pointer;text-decoration:underline}
+.sel-cls-n{color:#94a3b8;font-size:12px;font-weight:400}
 .sel-item{display:inline-flex;align-items:center;gap:4px;margin:2px 14px 2px 0;font-size:14px;font-weight:400;white-space:nowrap}
 .sel-item.checked{background:#eff6ff}
 .sel-item .na{color:#94a3b8}
@@ -91,11 +93,21 @@
   #print-root .class-block:first-of-type{break-before:auto}
   .cls-summary{page-break-after:avoid}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
-  .cols table{width:100%}
+  .cols table{width:100%;table-layout:fixed}
   table{font-size:14px;page-break-inside:auto}
   tr{page-break-inside:avoid}
-  .teacher-footer{page-break-inside:avoid}
+  .teacher-footer{page-break-inside:avoid;break-inside:avoid}
   .sigl img{print-color-adjust:exact;-webkit-print-color-adjust:exact;break-inside:avoid}
+  /* 人數多的班（>32）：縮小簽名圖與「列高」讓資安提醒＋導師簽名區留在同一頁。
+     注意：上方 td/tr 有 height:60px 硬鎖，必須在這裡一併覆蓋，否則只縮圖片無效。 */
+  .cols.dense table{font-size:12.5px}
+  .cols.dense td,.cols.dense th{padding:1px 3px}
+  #print-root .cols.dense td{height:40px;padding:1px 3px}
+  #print-root .cols.dense tbody tr{height:40px}
+  .cols.dense .sigl img{height:34px}
+  .cols.dense .sigl.pending{height:34px}
+  .cols.dense .sigl.paper{font-size:11px;padding:1px 5px}
+  .cols.dense .cls-summary{margin:2px 0 4px;font-size:12px}
 }
 </style>
 </head>
@@ -123,16 +135,15 @@
   </div>
   <div class="tool-block">
     <h3>簽署書影像（總表 N 欄）</h3>
-    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>批次列印</b>則把下方勾選的學生、其 N 欄已有的影像合併成一份多頁 PDF 下載，一次印完（純臨時檔，不存 Drive）。</p>
+    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>列印簽署書影像</b>則把下方勾選的學生，其 N 欄影像以「一人一頁 A4」開新視窗直接列印（點班名可只選一班）。</p>
     <div class="row">
       <button class="btn" onclick="exportPages()">回填簽署書影像</button>
       <span id="pdfResult" class="sync-result"></span>
     </div>
     <div class="row" style="margin-top:8px">
       <button class="btn light" onclick="pageSelAll()">全選</button>
-      <button class="btn light" onclick="pageSelAllCls()">各班全選</button>
       <button class="btn light" onclick="pageSelClear()">清空</button>
-      <button class="btn" onclick="batchPrintPdf()">批次列印勾選的簽署書影像（<span id="pageCount">0</span> 頁）</button>
+      <button class="btn" onclick="batchPrintPdf()">列印勾選的簽署書影像（<span id="pageCount">0</span> 頁）</button>
       <span id="batchResult" class="sync-result"></span>
     </div>
     <div id="pageStudents" class="sel-list"><p class="hint">資料載入中…</p></div>
@@ -160,7 +171,7 @@
 <script src="js/content.js?v=2"></script>
 <script src="js/api.js?v=14"></script>
 <script src="js/render.js?v=2"></script>
-<script src="js/print.js?v=20"></script>
+<script src="js/print.js?v=22"></script>
 
 </body>
 </html>
