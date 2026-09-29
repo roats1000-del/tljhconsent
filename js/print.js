@@ -295,7 +295,7 @@ function renderSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="selOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班）</span></div>' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班，不影響篩選）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -461,7 +461,7 @@ function renderPageSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="pageSelOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班）</span></div>' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班，不影響篩選）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -496,7 +496,9 @@ function pageSelClear(){
     function(c){ c.checked = false; });
   updPageCount();
 }
-// 點班級名稱 → 只勾選該班學生（其他班全部取消），並把畫面篩選切到該班。
+// 點班級名稱 → 只勾選該班學生（其他班全部取消）。
+// 純粹是「勾選輔助」：刻意不動上方的年級／班級篩選，也不影響另一個清單，
+// 避免點一下班名就把整個畫面的篩選與清單都縮成那一班。
 // 兩個清單共用：pageSelOnlyCls（簽署書影像）與 selOnlyCls（簽署用紙本）。
 function selOnlyClsIn(container, counterFn, cls){
   Array.prototype.forEach.call(container.querySelectorAll('.sel-cls'), function(el){
@@ -509,14 +511,6 @@ function selOnlyClsIn(container, counterFn, cls){
     }
   });
   counterFn();
-  // 把篩選切到該班，讓簽名核對頁同步
-  var g = document.getElementById('grade'), c = document.getElementById('cls');
-  if (g && c){
-    var parts = String(cls).split('年');
-    g.value = parts[0] || '';
-    c.value = cls;
-    c.dispatchEvent(new Event('change'));
-  }
 }
 function pageSelOnlyCls(cls){
   var el = document.getElementById('pageStudents');
