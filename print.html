@@ -123,15 +123,19 @@
   </div>
   <div class="tool-block">
     <h3>簽署書影像（總表 N 欄）</h3>
-    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>批次列印</b>則把 N 欄已有的影像合併成一份多頁 PDF 下載，一次印完（純臨時檔，不存 Drive）。</p>
+    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>批次列印</b>則把下方勾選的學生、其 N 欄已有的影像合併成一份多頁 PDF 下載，一次印完（純臨時檔，不存 Drive）。</p>
     <div class="row">
       <button class="btn" onclick="exportPages()">回填簽署書影像</button>
       <span id="pdfResult" class="sync-result"></span>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn" onclick="batchPrintPdf()">批次列印（合併多頁 PDF）</button>
+      <button class="btn light" onclick="pageSelAll()">全選</button>
+      <button class="btn light" onclick="pageSelAllCls()">各班全選</button>
+      <button class="btn light" onclick="pageSelClear()">清空</button>
+      <button class="btn" onclick="batchPrintPdf()">批次列印勾選的簽署書影像（<span id="pageCount">0</span> 頁）</button>
       <span id="batchResult" class="sync-result"></span>
     </div>
+    <div id="pageStudents" class="sel-list"><p class="hint">資料載入中…</p></div>
   </div>
   <div class="tool-block">
     <h3>列印簽署用紙本</h3>
@@ -156,7 +160,7 @@
 <script src="js/content.js?v=2"></script>
 <script src="js/api.js?v=14"></script>
 <script src="js/render.js?v=2"></script>
-<script src="js/print.js?v=19"></script>
+<script src="js/print.js?v=20"></script>
 
 </body>
 </html>
