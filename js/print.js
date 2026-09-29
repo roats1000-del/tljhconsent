@@ -293,7 +293,9 @@ function renderSel(){
     byCls[r.cls].push(r);
   });
   el.innerHTML = order.map(function(cls){
-    return '<div class="sel-cls"><b>' + esc(cls) + '</b></div>' +
+    return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
+      '<a href="javascript:void(0)" onclick="selOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -494,9 +496,10 @@ function pageSelClear(){
     function(c){ c.checked = false; });
   updPageCount();
 }
-// 點班級名稱 → 只勾選該班學生（其他班全部取消），並把畫面篩選切到該班
-function pageSelOnlyCls(cls){
-  Array.prototype.forEach.call(document.querySelectorAll('#pageStudents .sel-cls'), function(el){
+// 點班級名稱 → 只勾選該班學生（其他班全部取消），並把畫面篩選切到該班。
+// 兩個清單共用：pageSelOnlyCls（簽署書影像）與 selOnlyCls（簽署用紙本）。
+function selOnlyClsIn(container, counterFn, cls){
+  Array.prototype.forEach.call(container.querySelectorAll('.sel-cls'), function(el){
     var isTarget = el.getAttribute('data-cls') === cls;
     var nxt = el.nextElementSibling;
     while (nxt && !nxt.classList.contains('sel-cls')){
@@ -505,7 +508,7 @@ function pageSelOnlyCls(cls){
       nxt = nxt.nextElementSibling;
     }
   });
-  updPageCount();
+  counterFn();
   // 把篩選切到該班，讓簽名核對頁同步
   var g = document.getElementById('grade'), c = document.getElementById('cls');
   if (g && c){
@@ -514,6 +517,16 @@ function pageSelOnlyCls(cls){
     c.value = cls;
     c.dispatchEvent(new Event('change'));
   }
+}
+function pageSelOnlyCls(cls){
+  var el = document.getElementById('pageStudents');
+  if (!el) return;
+  selOnlyClsIn(el, updPageCount, cls);
+}
+function selOnlyCls(cls){
+  var el = document.getElementById('selStudents');
+  if (!el) return;
+  selOnlyClsIn(el, updCount, cls);
 }
 // 依目前篩選、挑「N 欄已有簽署書影像」的紀錄，送去 GAS 合併成一份多頁 PDF 回傳，
 // 前端觸發下載；行政下載後直接用印表機「全部列印」一次印完。純臨時檔，不存 Drive、不動總表。
@@ -536,27 +549,58 @@ function batchPrintPdf(){
       : '目前勾選的學生沒有可批次列印的簽署書影像。';
     return;
   }
-  el.innerHTML = '開啟列印視窗…（' + rows.length + ' 頁）';
-  apiCall('printPagesHtml', { key: KEY.trim(), files: rows.map(function(r){ return r.page; }),
-                              title: '簽署書影像（' + rows.length + ' 頁）' })
-    .then(function(d){
-      if (!d){ el.textContent = '失敗（伺服器沒有回應）。'; return; }
-      if (d.error){ el.textContent = d.error; return; }
-      if (!d.html){ el.textContent = '失敗（沒有回傳資料）。'; return; }
-      // 開新視窗直接列印圖片：不再組 PDF，畫質 100% 原圖
-      var w = window.open('', '_blank');
-      if (!w){
-        el.textContent = '瀏覽器擋住新視窗，請允許本頁開啟跳視窗後再按一次。';
-        return;
-      }
-      w.document.open();
-      w.document.write(d.html);
-      w.document.close();
-      el.textContent = '已開啟列印視窗（' + d.count + ' 頁）。若未自動跳視窗請按該視窗右上角的「列印」鈕。' +
+  el.innerHTML = '合併中…（' + rows.length + ' 頁）';
+  // 分批送出再各自下載：一次回傳整包的 base64 會超過回應大小上限造成 502。
+  // 每批 12 頁（單頁約 200–350KB → 每批約 3–4MB base64，穩定在限制內）。
+  var BATCH = 12;
+  var all = rows.map(function(r){ return r.page; });
+  var batches = [];
+  for (var i = 0; i < all.length; i += BATCH) batches.push(all.slice(i, i + BATCH));
+  var doneN = 0, okN = 0, firstErr = '', multi = batches.length > 1;
+  var names = [];
+  function runBatch(k){
+    if (k >= batches.length){
+      el.innerHTML = (firstErr
+          ? '完成，但有 ' + doneN + ' 張失敗：' + firstErr.slice(0, 120) + '　'
+          : '') +
+        '已合併 ' + okN + ' 頁並下載' +
+        (multi ? '（分成 ' + batches.length + ' 個 PDF 檔）' : '') + '。' +
+        '開檔後用印表機「全部列印」即可。' +
         (noPage ? '　另 ' + noPage + ' 筆尚未回填簽署書影像（未納入）。' : '');
-    }).catch(function(e){
-      el.textContent = '失敗：' + String((e && e.message) || e);
-    });
+      return;
+    }
+    el.innerHTML = '合併中…（第 ' + (k + 1) + '/' + batches.length + ' 批，' +
+      Math.min((k + 1) * BATCH, rows.length) + '/' + rows.length + ' 頁）';
+    apiCall('printPdf', { key: KEY.trim(), files: batches[k] })
+      .then(function(d){
+        if (!d) throw new Error('伺服器沒有回應');
+        if (d.error){
+          doneN += batches[k].length;
+          if (!firstErr) firstErr = d.error + ((d.skips || []).length ? '（' + d.skips.slice(0, 2).join('；') + '）' : '');
+          runBatch(k + 1); return;
+        }
+        if (!d.b64) throw new Error('沒有回傳資料');
+        var bin = atob(d.b64);
+        var buf = new Uint8Array(bin.length);
+        for (var j = 0; j < bin.length; j++) buf[j] = bin.charCodeAt(j);
+        var blob = new Blob([buf], { type: 'application/pdf' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        var nm = multi ? (d.name || '').replace(/\.pdf$/, '_part' + (k + 1) + '.pdf') : (d.name || '簽署書影像.pdf');
+        names.push(nm);
+        a.href = url; a.download = nm;
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+        okN += d.count;
+        runBatch(k + 1);
+      })
+      .catch(function(e){
+        doneN += batches[k].length;
+        if (!firstErr) firstErr = String((e && e.message) || e);
+        runBatch(k + 1);
+      });
+  }
+  runBatch(0);
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
