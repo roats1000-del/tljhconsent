@@ -135,7 +135,7 @@
   </div>
   <div class="tool-block">
     <h3>簽署書影像（總表 N 欄）</h3>
-    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>列印簽署書影像</b>則把下方勾選的學生，其 N 欄影像以「一人一頁 A4」開新視窗直接列印（點班名可只選一班）。</p>
+    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>列印簽署書影像</b>則把下方勾選的學生，其 N 欄影像合併成「一人一頁 A4」的多頁 PDF 下載（點班名可只選一班；超過 12 頁會自動分檔，避免失敗）。</p>
     <div class="row">
       <button class="btn" onclick="exportPages()">回填簽署書影像</button>
       <span id="pdfResult" class="sync-result"></span>
@@ -171,7 +171,7 @@
 <script src="js/content.js?v=2"></script>
 <script src="js/api.js?v=14"></script>
 <script src="js/render.js?v=2"></script>
-<script src="js/print.js?v=22"></script>
+<script src="js/print.js?v=24"></script>
 
 </body>
 </html>
