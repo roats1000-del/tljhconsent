@@ -199,24 +199,21 @@ function rowHtml(r){
 }
 // 簽名圖片：用分批撈回的 IMG 填充（data: URI 內嵌，能看到就一定能印）。
 // 尚未撈到 → 輕量空白佔位（維持版型）；撈失敗 → ✕（點開原始 Drive 網址）。
-// 「影像」小連結（螢幕顯示、列印隱藏）＝開啟 N 欄的簽署書影像，供行政快速取用單張。
+// 註：簽署書影像（N 欄）另見「簽署書影像」表格，這裡維持原本版面不動。
 function sigCell(r){
-  var imgLink = r.page
-    ? '<a class="sigl-img" href="' + esc(r.page) + '" target="_blank" rel="noopener">影像</a>'
-    : '';
   if (r.paper){
-    return (r.sign
+    return r.sign
       ? '<a class="sigl paper" href="' + esc(r.sign) + '" target="_blank" rel="noopener">紙本</a>'
-      : '<span class="sigl paper">紙本</span>') + imgLink;
+      : '<span class="sigl paper">紙本</span>';
   }
   if (IMG[r.id]){
-    return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>' + imgLink;
+    return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>';
   }
   if (r.sign && imgPending) return '<span class="sigl pending"></span>';
   if (r.sign){
-    return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>' + imgLink;
+    return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>';
   }
-  return imgLink;
+  return '';
 }
 function doPrint(){
   var root = document.getElementById('print-root');
