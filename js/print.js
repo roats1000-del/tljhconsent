@@ -199,20 +199,24 @@ function rowHtml(r){
 }
 // 簽名圖片：用分批撈回的 IMG 填充（data: URI 內嵌，能看到就一定能印）。
 // 尚未撈到 → 輕量空白佔位（維持版型）；撈失敗 → ✕（點開原始 Drive 網址）。
+// 「影像」小連結（螢幕顯示、列印隱藏）＝開啟 N 欄的簽署書影像，供行政快速取用單張。
 function sigCell(r){
+  var imgLink = r.page
+    ? '<a class="sigl-img" href="' + esc(r.page) + '" target="_blank" rel="noopener">影像</a>'
+    : '';
   if (r.paper){
-    return r.sign
+    return (r.sign
       ? '<a class="sigl paper" href="' + esc(r.sign) + '" target="_blank" rel="noopener">紙本</a>'
-      : '<span class="sigl paper">紙本</span>';
+      : '<span class="sigl paper">紙本</span>') + imgLink;
   }
   if (IMG[r.id]){
-    return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>';
+    return '<span class="sigl"><img src="data:image/png;base64,' + IMG[r.id] + '" alt="家長簽名"></span>' + imgLink;
   }
   if (r.sign && imgPending) return '<span class="sigl pending"></span>';
   if (r.sign){
-    return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>';
+    return '<a class="sigl" href="' + esc(r.sign) + '" target="_blank" rel="noopener">✕</a>' + imgLink;
   }
-  return '';
+  return imgLink;
 }
 function doPrint(){
   var root = document.getElementById('print-root');
@@ -360,6 +364,114 @@ window.onafterprint = function(){
   document.getElementById('paper-root').innerHTML = '';
   updCount();
 };
+
+// ---------- 回填簽署書影像（exportPages） ----------
+// 依目前篩選範圍，把「線上簽署、已有簽名圖」的紀錄逐張畫成 A4 JPEG → 送回 GAS 存成 JPG
+// 進「肖像權同意-簽名影像」資料夾，並自動回填該列 N 欄。紙本掃描列（r.paper）跳過
+// （紙本的 N 欄由 syncScans 或 init 一次性回填，不用這裡處理）。
+function exportPages(){
+  var el = document.getElementById('pdfResult');
+  if (!el) return;
+  var rows = currentRows().filter(function(r){ return r.decision && r.sign && !r.paper && IMG[r.id] && !r.page; });
+  var already = currentRows().filter(function(r){ return r.decision && r.sign && !r.paper && r.page; }).length;
+  var missing = currentRows().filter(function(r){ return r.decision && r.sign && !r.paper && !IMG[r.id]; });
+  if (!rows.length){
+    el.innerHTML = already
+      ? '目前篩選下的線上簽署都已有簽署書影像（' + already + ' 筆），無需回填。'
+      : (missing.length
+        ? '沒有可回填的列（另有 ' + missing.length + ' 筆簽名圖尚未載入，請先「重試載入圖片」）。'
+        : '目前篩選下沒有可回填的線上簽署紀錄。');
+    return;
+  }
+  var pre = already ? ('已有 ' + already + ' 筆略過；' ) : '';
+  if (missing.length) pre += ('另有 ' + missing.length + ' 筆簽名圖未載入而略過；');
+  el.innerHTML = pre + '準備中…（' + rows.length + ' 張）';
+  var items = [];
+  var idx = 0;
+  function step(){
+    if (idx >= rows.length){ sendPdfBatch(items, 0, el); return; }
+    var r = rows[idx];
+    el.innerHTML = pre + '繪製中…' + (idx + 1) + '/' + rows.length;
+    renderConsentImage({
+      school: APP.SCHOOL,
+      sid: r.id, name: INFO[r.id] ? INFO[r.id].name : r.name,
+      rel: r.rel || '', decision: r.decision || '',
+      signer: r.signer || '', sigB64: IMG[r.id],
+      timeText: fmtTimeStr(r.tstr)
+    }).then(function(res){
+      items.push({ b64: res.dataUrl, sid: r.id, decision: r.decision, tstr: r.tstr || '' });
+      idx++;
+      step();
+    }).catch(function(e){
+      el.innerHTML = '繪製失敗（' + r.id + '）：' + String((e && e.message) || e);
+    });
+  }
+  step();
+}
+// 把 yyyyMMdd_HHmmss 轉成顯示用 'yyyy/M/d HH:mm:ss'
+function fmtTimeStr(s){
+  if (!s) return '';
+  var m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/.exec(s);
+  if (!m) return s;
+  return m[1] + '/' + (+m[2]) + '/' + (+m[3]) + ' ' + m[4] + ':' + m[5] + ':' + m[6];
+}
+// 分批送 GAS（一次 5 張，payload 不會過大；失敗列會累積在 fails 回報）
+function sendPdfBatch(items, start, el){
+  if (start >= items.length){
+    el.innerHTML = '回填完成，共 ' + items.length + ' 張（已自動寫入 N 欄）。';
+    load();   // 重整，讓 N 欄狀態與「批次列印」按鈕同步
+    return;
+  }
+  var chunk = items.slice(start, start + 5);
+  el.innerHTML = '回填中…' + Math.min(start + 5, items.length) + '/' + items.length;
+  apiCall('makePages', { key: KEY.trim(), items: chunk }).then(function(d){
+    var fails = (d && (d.fails || [])) || [];
+    var extra = fails.length ? ('　失敗 ' + fails.length + ' 筆：' + fails.join('；')) : '';
+    if (extra) el.innerHTML = '回填中…（部分失敗' + extra + '）';
+    sendPdfBatch(items, start + chunk.length, el);
+  }).catch(function(e){
+    el.innerHTML = '送出失敗：' + String((e && e.message) || e) + '（可重新再按一次，已完成的不會重複）';
+  });
+}
+
+// ---------- 批次列印（路線 B）：合併成一份多頁 PDF ----------
+// 依目前篩選、挑「N 欄已有簽署書影像」的紀錄，送去 GAS 合併成一份多頁 PDF 回傳，
+// 前端觸發下載；行政下載後直接用印表機「全部列印」一次印完。純臨時檔，不存 Drive、不動總表。
+function batchPrintPdf(){
+  var el = document.getElementById('batchResult');
+  if (!el) return;
+  var rows = currentRows().filter(function(r){ return r.page; });
+  var noPage = currentRows().filter(function(r){ return r.decision && !r.page; }).length;
+  if (!rows.length){
+    el.innerHTML = noPage
+      ? '目前篩選下沒有「已有簽署書影像」的列（另有 ' + noPage + ' 筆尚未回填，請先按「回填簽署書影像」）。'
+      : '目前篩選下沒有可批次列印的紀錄。';
+    return;
+  }
+  el.innerHTML = '合併中…（' + rows.length + ' 頁）';
+  apiCall('printPdf', { key: KEY.trim(), files: rows.map(function(r){ return r.page; }) })
+    .then(function(d){
+      if (!d){ el.textContent = '合併失敗（伺服器沒有回應）。'; return; }
+      if (d.error){ el.textContent = d.error; return; }
+      if (!d.b64){ el.textContent = '合併失敗（沒有回傳資料）。'; return; }
+      // base64 → Blob → 觸發下載
+      var bin = atob(d.b64);
+      var buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      var blob = new Blob([buf], { type: 'application/pdf' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = d.name || '批次列印.pdf';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      var msg = '已合併 ' + d.count + ' 頁並開始下載（' + (d.name || '') + '），開檔後用印表機「全部列印」即可。';
+      if ((d.skips || []).length) msg += '　略過 ' + d.skips.length + ' 張：' + d.skips.join('；');
+      if (noPage) msg += '　另 ' + noPage + ' 筆尚未回填簽署書影像（未納入）。';
+      el.innerHTML = msg;
+    }).catch(function(e){
+      el.textContent = '合併失敗：' + String((e && e.message) || e);
+    });
+}
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 // 年級固定順序（七→八→九→其他）；班級內再照班名、座號排

@@ -36,6 +36,11 @@
 /* 紙本列：簽名欄顯示可點開掃描檔的「紙本」連結，不是 ── 簽名圖 */
 .sigl.paper{display:inline-block;padding:2px 8px;border:1px solid #3b82f6;border-radius:10px;
   color:#2563eb;font-size:12px;text-decoration:none;background:#eff6ff}
+/* N 欄「簽署書影像」小連結：行政快速取用單張；只在螢幕顯示，列印時隱藏 */
+.sigl-img{display:inline-block;margin-left:4px;padding:1px 6px;border:1px solid #94a3b8;
+  border-radius:10px;color:#475569;font-size:11px;text-decoration:none;background:#f8fafc;
+  vertical-align:middle;white-space:nowrap}
+.sigl-img:hover{background:#e2e8f0;color:#0f172a}
 /* ---- 工具區（同步掃描＋紙本表單選取；螢幕顯示，列印隱藏） ---- */
 .tools-wrap{display:flex;flex-direction:column;gap:10px;margin:14px 0}
 .tool-block{border:1px solid #d1d5db;border-radius:10px;padding:12px 14px}
@@ -56,6 +61,7 @@
 #paper-root{display:none}
 @media print{
   #paper-root{display:none}
+  .sigl-img{display:none}   /* 行政取用連結不列印 */
   body.paper .print-tools, body.paper h1, body.paper .sub, body.paper #summary,
   body.paper .credit, body.paper #print-root{display:none!important}
   body.paper #paper-root{display:block;padding:0}
@@ -77,6 +83,7 @@
 }
 @media print{
   .print-tools{display:none}
+  .sigl-img{display:none}   /* 行政取用連結不列印 */
   h1,.sub,#summary{display:none}
   body{padding:0}
   .credit{display:none}
@@ -115,6 +122,18 @@
     </div>
   </div>
   <div class="tool-block">
+    <h3>簽署書影像（總表 N 欄）</h3>
+    <p class="hint">N 欄統一存放「簽署書整頁 JPG」：線上簽署＝送出時自動產生的同意書圖、紙本＝掃描 JPG。<b>回填</b>按鈕只補舊的線上簽署（依目前篩選，自動寫入 N 欄）；紙本已由掃描同步或初始化回填。<b>批次列印</b>則把 N 欄已有的影像合併成一份多頁 PDF 下載，一次印完（純臨時檔，不存 Drive）。</p>
+    <div class="row">
+      <button class="btn" onclick="exportPages()">回填簽署書影像</button>
+      <span id="pdfResult" class="sync-result"></span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="batchPrintPdf()">批次列印（合併多頁 PDF）</button>
+      <span id="batchResult" class="sync-result"></span>
+    </div>
+  </div>
+  <div class="tool-block">
     <h3>列印簽署用紙本</h3>
     <p class="hint">勾選要發紙本表單給家長的學生（每位學生一張 A4 直式），點「列印」即套印。學生回家簽妥後收回掃描建檔，再回來做「紙本掃描同步」。</p>
     <div class="row">
@@ -136,7 +155,8 @@
 <script src="js/config.js?v=14"></script>
 <script src="js/content.js?v=2"></script>
 <script src="js/api.js?v=14"></script>
-<script src="js/print.js?v=17"></script>
+<script src="js/render.js?v=2"></script>
+<script src="js/print.js?v=19"></script>
 
 </body>
 </html>

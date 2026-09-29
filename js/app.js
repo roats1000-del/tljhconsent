@@ -94,10 +94,31 @@ function beforeSubmit(ev){
   var btn = document.querySelector('button[type=submit]');
   btn.disabled = true; btn.textContent = '送出中…';
 
-  apiCall('submit', p).then(showResult).catch(function(e){
+  // 順便把「整頁同意書」畫成 JPEG 一起送出 → 後端於送出成功後自動存成簽署書影像（JPG）並寫入 N 欄。
+  // 純附加：繪圖失敗不影響送出（後端沒收到 page 就只存簽名圖，N 欄留空）。
+  renderConsentImage({
+    school: APP.SCHOOL,
+    sid: sid, name: name, rel: rel,
+    decision: v.value, signer: signer,
+    sigB64: cv.toDataURL('image/png').split(',')[1] || '',
+    timeText: fmtNow()
+  }).then(function(res){
+    p.page = res.dataUrl;
+    return apiCall('submit', p);
+  }).catch(function(e){
+    return apiCall('submit', p);
+  }).then(showResult).catch(function(e){
     showResult({ title: '系統錯誤', body: String((e && e.message) || e) });
   });
 }
+
+// 現在時間顯示用（yyyy/M/d HH:mm:ss）；簽署 PDF 頁腳顯示的送出時間
+function fmtNow(){
+  var d = new Date();
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() +
+         ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+}
+function p2(n){ return (n < 10 ? '0' : '') + n; }
 
 function showResult(r){
   r = r || {};
