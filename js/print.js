@@ -295,13 +295,13 @@ function renderSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="selOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班，不影響篩選）</span></div>' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
         var checked = keep[r.id] ? ' checked' : '';
         return '<label class="sel-item' + (checked ? ' checked' : '') + '">' +
-          '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updCount()"> ' +
+          '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updCount();updateClsCounters(document.getElementById(\'selStudents\'))"> ' +
           esc(r.id) + ' ' + esc(INFO[r.id].name || '') +
           ' <span class="' + sc + '">' + esc(dec) + '</span>' +
           (r.paper ? ' <span class="badge-paper">紙本</span>' : '') +
@@ -309,6 +309,7 @@ function renderSel(){
       }).join('');
   }).join('');
   updCount();
+  updateClsCounters(el);
 }
 function updCount(){
   var boxes = document.querySelectorAll('#selStudents input[type=checkbox]:checked');
@@ -461,13 +462,13 @@ function renderPageSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="pageSelOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝只選這班，不影響篩選）</span></div>' +
+      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
         var checked = keep[r.id] ? ' checked' : '';
         return '<label class="sel-item' + (checked ? ' checked' : '') + '">' +
-          '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updPageCount()"> ' +
+          '<input type="checkbox" data-id="' + esc(r.id) + '"' + checked + ' onchange="updPageCount();updateClsCounters(document.getElementById(\'pageStudents\'))"> ' +
           esc(r.id) + ' ' + esc(r.name || '') +
           ' <span class="' + sc + '">' + esc(dec) + '</span>' +
           (r.paper ? ' <span class="badge-paper">紙本</span>' : '') +
@@ -475,6 +476,7 @@ function renderPageSel(){
       }).join('');
   }).join('');
   updPageCount();
+  updateClsCounters(el);
 }
 function updPageCount(){
   var boxes = document.querySelectorAll('#pageStudents input[type=checkbox]:checked');
@@ -496,21 +498,52 @@ function pageSelClear(){
     function(c){ c.checked = false; });
   updPageCount();
 }
-// 點班級名稱 → 只勾選該班學生（其他班全部取消）。
-// 純粹是「勾選輔助」：刻意不動上方的年級／班級篩選，也不影響另一個清單，
-// 避免點一下班名就把整個畫面的篩選與清單都縮成那一班。
-// 兩個清單共用：pageSelOnlyCls（簽署書影像）與 selOnlyCls（簽署用紙本）。
+// 點班級名稱 → 切換「整班」的勾選狀態（累積式，可連續點多班、跨年級選班）。
+//   規則：該班若已「全滿」就整班取消，否則整班勾選（一般清單慣例，按一下必有明確結果）。
+// 純粹是「勾選輔助」：刻意不動上方的年級／班級篩選，也不影響另一個清單。
+// 兩個清單共用，各自獨立：pageSelOnlyCls（簽署書影像）與 selOnlyCls（簽署用紙本）。
 function selOnlyClsIn(container, counterFn, cls){
+  var target = null;
   Array.prototype.forEach.call(container.querySelectorAll('.sel-cls'), function(el){
-    var isTarget = el.getAttribute('data-cls') === cls;
-    var nxt = el.nextElementSibling;
+    if (el.getAttribute('data-cls') === cls) target = el;
+  });
+  if (!target) return;
+  // 先收集該班所有 checkbox，判斷目前是否已全滿
+  var boxes = [];
+  var nxt = target.nextElementSibling;
+  while (nxt && !nxt.classList.contains('sel-cls')){
+    var bx = nxt.querySelector('input[type=checkbox]');
+    if (bx) boxes.push(bx);
+    nxt = nxt.nextElementSibling;
+  }
+  if (!boxes.length) return;
+  var allOn = boxes.every(function(b){ return b.checked; });
+  boxes.forEach(function(b){ b.checked = !allOn; });   // 全滿→全清；否則→全選
+  counterFn();
+  updateClsCounters(container);
+}
+// 更新各班名稱旁的「已選／總數」，讓累積選到多班時一眼看得出來
+function updateClsCounters(container){
+  Array.prototype.forEach.call(container.querySelectorAll('.sel-cls'), function(el){
+    var nxt = el.nextElementSibling, on = 0, all = 0;
     while (nxt && !nxt.classList.contains('sel-cls')){
       var bx = nxt.querySelector('input[type=checkbox]');
-      if (bx) bx.checked = isTarget;      // 目標班全選、其餘班全取消
+      if (bx){ all++; if (bx.checked) on++; }
       nxt = nxt.nextElementSibling;
     }
+    var tag = el.querySelector('.sel-cls-n');
+    if (!tag) return;
+    var cnt = el.querySelector('.sel-cls-cnt');
+    if (!cnt){
+      cnt = document.createElement('span');
+      cnt.className = 'sel-cls-cnt';
+      el.appendChild(cnt);
+    }
+    cnt.textContent = '（' + on + '/' + all + '）';
+    tag.style.display = 'none';
+    el.classList.toggle('cls-full', all > 0 && on === all);
+    el.classList.toggle('cls-part', on > 0 && on < all);
   });
-  counterFn();
 }
 function pageSelOnlyCls(cls){
   var el = document.getElementById('pageStudents');
