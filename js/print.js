@@ -329,6 +329,7 @@ function selAll(){
   Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
     function(c){ c.checked = true; });
   updCount();
+  updateClsCounters(document.getElementById('selStudents'));
 }
 function selUnsigned(){
   Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
@@ -337,11 +338,13 @@ function selUnsigned(){
       c.checked = !r.decision;
     });
   updCount();
+  updateClsCounters(document.getElementById('selStudents'));
 }
 function selClear(){
   Array.prototype.forEach.call(document.querySelectorAll('#selStudents input[type=checkbox]'),
     function(c){ c.checked = false; });
   updCount();
+  updateClsCounters(document.getElementById('selStudents'));
 }
 // 把勾選學生套印成 A4 直式簽署用紙本（一位一張），印完自動還原螢幕
 function doPaperPrint(){
@@ -496,11 +499,13 @@ function pageSelAll(){
   Array.prototype.forEach.call(document.querySelectorAll('#pageStudents input[type=checkbox]'),
     function(c){ c.checked = true; });
   updPageCount();
+  updateClsCounters(document.getElementById('pageStudents'));
 }
 function pageSelClear(){
   Array.prototype.forEach.call(document.querySelectorAll('#pageStudents input[type=checkbox]'),
     function(c){ c.checked = false; });
   updPageCount();
+  updateClsCounters(document.getElementById('pageStudents'));
 }
 // 點班級名稱 → 切換「整班」的勾選狀態（累積式，可連續點多班、跨年級選班）。
 //   規則：該班若已「全滿」就整班取消，否則整班勾選（一般清單慣例，按一下必有明確結果）。
