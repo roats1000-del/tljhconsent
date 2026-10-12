@@ -11,6 +11,7 @@
 var KEY = (new URLSearchParams(location.search)).get('key') || '';
 
 var LAST = [];            // 後端回傳的表單資料（預留 sign 網址，圖片另外分批撈）
+var TEACHERS = {};        // 班級 → 導師姓名（來自「導師名冊」分頁，meta 模式回傳）
 var INFO = {};            // 學號 → 該列資料（含 name），供紙本選取清單與紙本表單使用
 var IMG = {};             // 學號 → 簽名圖 signB64（批次載入後填充）
 var imgPending = false;   // 是否仍有批次在撈圖
@@ -25,6 +26,7 @@ function load(){
     if (d.error){ document.getElementById('summary').textContent = d.error; return; }
     if (d.title){ document.getElementById('summary').textContent = d.title + (d.body ? '：' + d.body : ''); return; }
     LAST = sortRows(d.rows || []);
+    TEACHERS = d.teachers || {};
     INFO = {};
     LAST.forEach(function(r){ if (r.id) INFO[r.id] = r; });
     fillSelectors(d);
@@ -166,7 +168,9 @@ function render(){
   document.getElementById('print-root').innerHTML = order.map(function(cls){
     var list = byCls[cls];
     var d = list.filter(function(r){ return !!r.decision; }).length;
-    return '<section class="class-block"><h2>' + esc(cls) + '</h2>' +
+    var t = TEACHERS[cls];
+    return '<section class="class-block"><h2>' + esc(cls) +
+      (t ? '　導師：' + esc(t) : '') + '</h2>' +
       '<p class="cls-summary">共 ' + list.length + ' 人｜線上已簽 ' + d +
       ' 人｜待補簽 ' + (list.length - d) + ' 人</p>' +
       classTables(list) +
@@ -295,7 +299,7 @@ function renderSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="selOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
+      esc(cls) + '</a></b>' + clsTeacherTag(cls) + ' <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -462,7 +466,7 @@ function renderPageSel(){
   el.innerHTML = order.map(function(cls){
     return '<div class="sel-cls" data-cls="' + esc(cls) + '"><b>' +
       '<a href="javascript:void(0)" onclick="pageSelOnlyCls(this.parentNode.parentNode.getAttribute(\'data-cls\'));return false;">' +
-      esc(cls) + '</a></b> <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
+      esc(cls) + '</a></b>' + clsTeacherTag(cls) + ' <span class="sel-cls-n">（點班名＝整班勾選／再點取消，可連續選多班）</span></div>' +
       byCls[cls].map(function(r){
         var dec = r.decision || '未填寫';
         var sc = decClass(r.decision);
@@ -631,6 +635,11 @@ function batchPrintPdf(){
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// 班級清單的「導師：ＸＸＸ」標籤（名冊沒資料就回空字串，不顯示）
+function clsTeacherTag(cls){
+  var t = TEACHERS[cls];
+  return t ? ' <span class="sel-cls-teacher">導師：' + esc(t) + '</span>' : '';
+}
 // 年級固定順序（七→八→九→其他）；班級內再照班名、座號排
 function gradeRankOf(cls){
   var g = String(cls || '').split('年')[0];
